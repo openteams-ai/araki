@@ -37,6 +37,11 @@ From this point, users can use pixi like they normally would. For example, add p
 $ pixi add python numpy
 ```
 
+Deactivate the environment
+```
+$ eval "$(akari deactivate)"
+```
+
 List what other environments are managed by akari by running the `envs` command
 ```
 $ akari envs ls
@@ -46,8 +51,6 @@ Available envs:
 ```
 
 ##  Next steps
-* allow users to deactivate an environment `akari deactivate`
-  * should identify what the currently active environment is
-  * then unset all the environment variables
-  * clean up the activation script
-* sort out how saving/checkpointing an environment should work
+* Sort out how saving/checkpointing an environment should work
+* Add shell prefix so users know what environment they are in
+* Rethink how activation/deactivation of environments should work

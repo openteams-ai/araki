@@ -1,8 +1,9 @@
 use clap::{Parser, Subcommand};
 
+use crate::cli::activate;
+use crate::cli::deactivate;
 use crate::cli::envs;
 use crate::cli::init;
-use crate::cli::activate;
 
 pub mod cli;
 
@@ -19,13 +20,17 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
-    // Initialize an environment
-    Init(init::Args),
     // Activate an environment
     Activate(activate::Args),
+
+    // Deactivate an environment
+    Deactivate(deactivate::Args),
+
     // Manage environments
     Envs(envs::Args),
 
+    // Initialize an environment
+    Init(init::Args),
 //     // Save a checkpoint for the environment
 //     Save {
 //         // name of the environment, defaults to the current active environment
@@ -71,8 +76,9 @@ pub fn main() {
     };
 
     match command {
-        Command::Init(cmd) => init::execute(cmd),
         Command::Activate(cmd) => activate::execute(cmd),
+        Command::Deactivate(cmd) => deactivate::execute(cmd),
         Command::Envs(cmd) => envs::execute(cmd),
+        Command::Init(cmd) => init::execute(cmd),
     }
 }
