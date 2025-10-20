@@ -47,6 +47,11 @@ List available tags
 $ akari list
 ```
 
+Checkout an older tag from an environment
+```
+$ akari checkout latest
+```
+
 Deactivate the environment
 ```
 $ eval "$(akari deactivate)"

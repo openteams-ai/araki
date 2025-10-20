@@ -1,4 +1,5 @@
 pub mod activate;
+pub mod checkout;
 pub mod common;
 pub mod deactivate;
 pub mod envs;
