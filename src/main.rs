@@ -12,7 +12,7 @@ pub mod cli;
 
 /// Manage and share environments
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(author, version, about = "Manage and version pixi environments")]
 pub struct Cli {
     // Manage environments
     #[command(subcommand)]
@@ -21,25 +21,25 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
-    // Activate an environment
+    /// Activate an environment
     Activate(activate::Args),
 
-    // Checkout a tag of an environment
+    /// Checkout a tag of an environment
     Checkout(checkout::Args),
 
-    // Deactivate an environment
+    /// Deactivate an environment
     Deactivate(deactivate::Args),
 
-    // Manage environments
+    /// Manage environments
     Envs(envs::Args),
 
-    // Initialize an environment
+    /// Initialize an environment
     Init(init::Args),
 
-    // Save the current version of the environment
+    /// Save the current version of the environment
     Tag(tag::Args),
 
-    // List available tags
+    /// List available tags
     List(list::Args),
 
 //     // Install a tag into an environment
