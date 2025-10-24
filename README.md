@@ -52,6 +52,15 @@ Checkout the latest tag (determined from the git tree) of an environment
 $ akari checkout latest
 ```
 
+Push/pull from a remote source
+```
+$ akari push v1
+```
+
+```
+$ akari pull
+```
+
 Deactivate the environment
 ```
 $ eval "$(akari deactivate)"

@@ -45,7 +45,6 @@ pub fn execute(args: Args){
 
 pub fn initialize_remote_git_project(source: String, project_env_dir: &Path) {
     println!("Pulling from remote source '{}'", source);
-
     // TODO: validate source
     let mut callbacks = RemoteCallbacks::new();
     // TODO: allow user to configure their ssh key

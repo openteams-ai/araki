@@ -6,6 +6,7 @@ use crate::cli::deactivate;
 use crate::cli::envs;
 use crate::cli::init;
 use crate::cli::list;
+use crate::cli::pull;
 use crate::cli::push;
 use crate::cli::tag;
 
@@ -40,18 +41,14 @@ pub enum Command {
     /// List available tags
     List(list::Args),
 
+    /// Pull changes from the remote repo
+    Pull(pull::Args),
+    
     /// Push changes to the remote repo
     Push(push::Args),
 
     /// Save the current version of the environment
     Tag(tag::Args),
-
-//     // Pull environment from a remote repo
-//     Pull {
-//         // name of the tag to push
-//         #[arg(help="Name of the tag")]
-//         tag: String
-//     },
 }
 
 pub fn main() {
@@ -69,6 +66,7 @@ pub fn main() {
         Command::Envs(cmd) => envs::execute(cmd),
         Command::Init(cmd) => init::execute(cmd),
         Command::List(cmd) => list::execute(cmd),
+        Command::Pull(cmd) => pull::execute(cmd),
         Command::Push(cmd) => push::execute(cmd),
         Command::Tag(cmd) => tag::execute(cmd),
     }
