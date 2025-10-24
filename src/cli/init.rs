@@ -1,5 +1,6 @@
 use clap::Parser;
-use git2::Repository;
+use git2::build::RepoBuilder;
+use git2::{Cred, FetchOptions, RemoteCallbacks};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -44,8 +45,21 @@ pub fn execute(args: Args){
 
 pub fn initialize_remote_git_project(source: String, project_env_dir: &Path) {
     println!("Pulling from remote source '{}'", source);
+
     // TODO: validate source
-    match Repository::clone(&source, project_env_dir) {
+    let mut callbacks = RemoteCallbacks::new();
+    // TODO: allow user to configure their ssh key
+    callbacks.credentials(|_url, username_from_url, _allowed_types| {
+        Cred::ssh_key_from_agent(
+            username_from_url.unwrap(),
+        )
+    });
+    let mut fetch_opts = FetchOptions::new();
+    fetch_opts.remote_callbacks(callbacks);
+    let mut builder = RepoBuilder::new();
+    builder.fetch_options(fetch_opts);
+
+    match builder.clone(&source, project_env_dir) {
         Ok(repo) => repo,
         Err(e) => panic!(
             "Failed to clone '{}', error: {}", source, e
