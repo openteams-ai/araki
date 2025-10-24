@@ -52,15 +52,6 @@ Checkout the latest tag (determined from the git tree) of an environment
 $ akari checkout latest
 ```
 
-Push/pull from a remote source
-```
-$ akari push v1
-```
-
-```
-$ akari pull
-```
-
 Deactivate the environment
 ```
 $ eval "$(akari deactivate)"
@@ -72,6 +63,21 @@ $ akari envs ls
 Available envs:
 * myproj
 * projmy
+```
+
+### Use a remote source
+Initialize a project with a remote backend (must use ssh url and have your ssh key loaded into your keychain)
+```
+$ akari init abc --source git@github.com:soapy1/test-abc.git
+
+```
+Push/pull from a remote source
+```
+$ akari pull
+```
+
+```
+$ akari push v1
 ```
 
 ##  Next steps
