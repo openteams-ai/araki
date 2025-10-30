@@ -28,6 +28,8 @@ pub fn execute(args: Args) {
     // Generate the activation script
     let activation_output = Command::new("pixi")
         .arg("shell-hook")
+        .arg("--change-ps1")
+        .arg("false")
         .current_dir(&project_env_dir)
         .output()
         .expect("Failed to execute command");
