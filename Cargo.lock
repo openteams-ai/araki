@@ -3,15 +3,6 @@
 version = 4
 
 [[package]]
-name = "akari-one"
-version = "0.1.0"
-dependencies = [
- "clap",
- "directories",
- "git2",
-]
-
-[[package]]
 name = "anstream"
 version = "0.6.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -59,6 +50,15 @@ dependencies = [
  "anstyle",
  "once_cell_polyfill",
  "windows-sys",
+]
+
+[[package]]
+name = "araki"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "directories",
+ "git2",
 ]
 
 [[package]]

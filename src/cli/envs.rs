@@ -23,15 +23,15 @@ pub struct ListArgs { }
 pub fn execute(args: Args) {
     match args.subcommand {
         EnvsSubcommand::List(_args) => {
-            // Get the akari envs dir
-            let Some(akari_envs_dir) = common::get_default_akari_envs_dir()
+            // Get the araki envs dir
+            let Some(araki_envs_dir) = common::get_default_araki_envs_dir()
             else {
                 println!("error!");
                 return
             };
 
             println!("Available envs:");
-            let paths = fs::read_dir(akari_envs_dir).unwrap();
+            let paths = fs::read_dir(araki_envs_dir).unwrap();
             for path in paths {
                 let env_path = path.unwrap().path();
                 let env_name = env_path.file_name().expect("unable to get filename");

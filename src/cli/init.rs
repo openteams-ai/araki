@@ -21,15 +21,15 @@ pub struct Args {
 pub fn execute(args: Args){
     println!("initializing env: {:?}", &args.name);
     
-    // Get the akari envs dir
-    let Some(akari_envs_dir) = common::get_default_akari_envs_dir()
+    // Get the araki envs dir
+    let Some(araki_envs_dir) = common::get_default_araki_envs_dir()
     else {
         println!("error!");
         return
     };
 
     // Check if the project already exists. If it does, exit
-    let project_env_dir = akari_envs_dir.join(&args.name);
+    let project_env_dir = araki_envs_dir.join(&args.name);
     if project_env_dir.exists() {
         println!("Environment {:?} already exists!", &args.name);
         return

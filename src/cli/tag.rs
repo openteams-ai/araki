@@ -37,7 +37,7 @@ pub fn execute(args: Args) {
 
     let tree_oid = index.write_tree().expect("failed to write tree");
     let tree = repo.find_tree(tree_oid).expect("failed to find tree");
-    let signature = Signature::now("akari", "place@holder.com").expect("failed to get signature");
+    let signature = Signature::now("araki", "place@holder.com").expect("failed to get signature");
     let head = repo.head().expect("Failed to get HEAD");
     let parent_commit = repo.find_commit(head.target().expect("Failed to get HEAD target OID")).expect("Failed to find parent commit");
 
@@ -59,7 +59,7 @@ pub fn execute(args: Args) {
     if let Some(ref message) = args.description {
         tag_message = message.to_string();
     } else {
-        tag_message = format!("akari environment tag: {}", args.tag)
+        tag_message = format!("araki environment tag: {}", args.tag)
     }
 
     repo.tag(

@@ -1,17 +1,17 @@
-# akari-one
+# araki
 
-A demo implementation of how akari might be able to work ¯\_(ツ)_/¯
+A demo implementation of how araki might be able to work ¯\_(ツ)_/¯
 
 ## Contributing
 
 To build and run the project use `pixi`.
 
 ### Build an executable
-To just build an executable to run akari-one run
+To just build an executable to run araki run
 ```
 $ pixi run build
 ```
-Then, a binary will be available in `./target/akari-one`
+Then, a binary will be available in `./target/araki`
 
 ### Run with pixi
 Or, use pixi to run `cargo run`
@@ -23,12 +23,12 @@ $ pixi run start -- -h
 
 Initialize a project
 ```
-$ akari init myproj
+$ araki init myproj
 ```
 
 Activate that environment
 ```
-$ eval "$(akari activate myproj)"
+$ eval "$(araki activate myproj)"
 ```
 
 From this point, users can use pixi like they normally would. For example, add python and numpy as a dependency to the project.
@@ -39,27 +39,27 @@ $ pixi add python=3.13 numpy=2.3
 
 Save a checkpoint by running the `tag` command
 ```
-$ akari tag v1 --description "python 3.13 and numpy 2.3"
+$ araki tag v1 --description "python 3.13 and numpy 2.3"
 ```
 
 List available tags
 ```
-$ akari list
+$ araki list
 ```
 
 Checkout the latest tag (determined from the git tree) of an environment
 ```
-$ akari checkout latest
+$ araki checkout latest
 ```
 
 Deactivate the environment
 ```
-$ eval "$(akari deactivate)"
+$ eval "$(araki deactivate)"
 ```
 
-List what other environments are managed by akari by running the `envs` command
+List what other environments are managed by araki by running the `envs` command
 ```
-$ akari envs ls
+$ araki envs ls
 Available envs:
 * myproj
 * projmy
@@ -68,16 +68,16 @@ Available envs:
 ### Use a remote source
 Initialize a project with a remote backend (must use ssh url and have your ssh key loaded into your keychain)
 ```
-$ akari init abc --source git@github.com:soapy1/test-abc.git
+$ araki init abc --source git@github.com:soapy1/test-abc.git
 
 ```
 Push/pull from a remote source
 ```
-$ akari pull
+$ araki pull
 ```
 
 ```
-$ akari push v1
+$ araki push v1
 ```
 
 ##  Next steps

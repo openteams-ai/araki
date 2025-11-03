@@ -11,17 +11,17 @@ pub struct Args {
 }
 
 pub fn execute(args: Args) {
-    // Get the akari envs dir
-    let Some(akari_envs_dir) = common::get_default_akari_envs_dir()
+    // Get the araki envs dir
+    let Some(araki_envs_dir) = common::get_default_araki_envs_dir()
     else {
         println!("error!");
         return
     };
 
     // Check if the project already exists. If it does, exit
-    let project_env_dir = akari_envs_dir.join(&args.name);
+    let project_env_dir = araki_envs_dir.join(&args.name);
     if !project_env_dir.exists() {
-        println!("Environment {:?} does not exist. Please create one using `akari init`!", &args.name);
+        println!("Environment {:?} does not exist. Please create one using `araki init`!", &args.name);
         return
     }
 
@@ -43,16 +43,16 @@ pub fn execute(args: Args) {
     println!("{}", activation_stdout);
 
     println!(
-        "__akari_git_prompt () {{ \
+        "__araki_git_prompt () {{ \
            GIT_OPTIONAL_LOCKS=0 command git -C ${{PIXI_PROJECT_ROOT}} \"$@\" \
         }}"
     );
     println!(
-        "__akari_env_checkout() {{ \
-            ref=$(__akari_git_prompt describe --tags --exact-match HEAD 2> /dev/null)  || \
-            ref=$(__akari_git_prompt rev-parse --short HEAD 2> /dev/null); \
+        "__araki_env_checkout() {{ \
+            ref=$(__araki_git_prompt describe --tags --exact-match HEAD 2> /dev/null)  || \
+            ref=$(__araki_git_prompt rev-parse --short HEAD 2> /dev/null); \
             echo ${{ref}}
         }}"
     );
-    println!("export prompt=\"({}:\\$(__akari_env_checkout)) $prompt\"", args.name);
+    println!("export prompt=\"({}:\\$(__araki_env_checkout)) $prompt\"", args.name);
 }
