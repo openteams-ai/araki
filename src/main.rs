@@ -4,6 +4,7 @@ use crate::cli::activate;
 use crate::cli::checkout;
 use crate::cli::deactivate;
 use crate::cli::envs;
+use crate::cli::get;
 use crate::cli::init;
 use crate::cli::list;
 use crate::cli::pull;
@@ -38,6 +39,9 @@ pub enum Command {
     /// Manage environments
     Envs(envs::Args),
 
+    /// Pull a lockspec from a remote and install it in the current directory
+    Get(get::Args),
+
     /// Initialize an environment
     Init(init::Args),
 
@@ -71,6 +75,7 @@ pub fn main() {
             Command::Checkout(cmd) => checkout::execute(cmd),
             Command::Deactivate(cmd) => deactivate::execute(cmd),
             Command::Envs(cmd) => envs::execute(cmd),
+            Command::Get(cmd) => get::execute(cmd),
             Command::Init(cmd) => init::execute(cmd),
             Command::List(cmd) => list::execute(cmd),
             Command::Pull(cmd) => pull::execute(cmd),
