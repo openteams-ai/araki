@@ -5,6 +5,7 @@ use std::{
     path::Path,
     process,
 };
+use uuid::Uuid;
 
 use clap::Parser;
 use regex::Regex;
@@ -98,7 +99,7 @@ pub fn execute(args: Args) {
     let target_toml = cwd.join("pixi.toml");
     let target_lock = cwd.join("pixi.lock");
 
-    let temp_path = temp_dir();
+    let temp_path = temp_dir().join(Uuid::new_v4().to_string());
     let tmp_toml = temp_path.as_path().join("pixi.toml");
     let tmp_lock = temp_path.as_path().join("pixi.lock");
 
@@ -136,6 +137,7 @@ pub fn execute(args: Args) {
         return;
     }
 
+    // Install the environment
     let mut child = match process::Command::new("pixi")
         .arg("install")
         .current_dir(&cwd)
@@ -147,13 +149,11 @@ pub fn execute(args: Args) {
             return;
         }
     };
-
     if child.wait().is_err() {
         eprintln!("pixi failed to install the environment. Aborting.");
         remove_lockspec(&cwd);
         return;
     }
-
     println!("Successfully installed {}/{}", remote.org, remote.repo);
 }
 
