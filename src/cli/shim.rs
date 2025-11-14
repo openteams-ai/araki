@@ -1,5 +1,5 @@
-use clap::{Parser};
-use std::{env, process::{Command}};
+use clap::Parser;
+use std::{env, process::Command};
 
 use crate::cli::common::get_default_araki_bin_dir;
 
@@ -10,7 +10,7 @@ pub struct Args {
     /// has tried to use a shimmed environment management tool. Not intended to be called by the
     /// user directly.
     #[arg(num_args = 1..)]
-    args: Vec<String>
+    args: Vec<String>,
 }
 
 /// Given a PATH environment variable, this function strips out the araki bin directory.
@@ -18,13 +18,11 @@ pub struct Args {
 /// * `path`: Colon-separated PATH environment variable to be stripped
 fn strip_araki_shim_path(path: &str) -> Result<String, String> {
     let araki_bin_dir = get_default_araki_bin_dir()?;
-    Ok(
-        path
-            .split(":")
-            .skip_while(|item| **item == araki_bin_dir.to_string_lossy())
-            .collect::<Vec<&str>>()
-            .join(":")
-    )
+    Ok(path
+        .split(":")
+        .skip_while(|item| **item == araki_bin_dir.to_string_lossy())
+        .collect::<Vec<&str>>()
+        .join(":"))
 }
 
 pub fn execute(args: Args) {
@@ -53,7 +51,6 @@ pub fn execute(args: Args) {
         } else {
             eprintln!("Could not destructure the command you passed.");
         }
-
     } else {
         let passed_args = args.args.join(" ");
         eprintln!(

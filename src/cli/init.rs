@@ -15,24 +15,23 @@ pub struct Args {
 
     /// Remote source to pull environment from
     #[arg(long)]
-    source: Option<String>
+    source: Option<String>,
 }
 
-pub fn execute(args: Args){
+pub fn execute(args: Args) {
     println!("initializing env: {:?}", &args.name);
-    
+
     // Get the araki envs dir
-    let Some(araki_envs_dir) = common::get_default_araki_envs_dir()
-    else {
+    let Some(araki_envs_dir) = common::get_default_araki_envs_dir() else {
         println!("error!");
-        return
+        return;
     };
 
     // Check if the project already exists. If it does, exit
     let project_env_dir = araki_envs_dir.join(&args.name);
     if project_env_dir.exists() {
         println!("Environment {:?} already exists!", &args.name);
-        return
+        return;
     }
     let _ = fs::create_dir_all(&project_env_dir);
 
@@ -49,9 +48,7 @@ pub fn initialize_remote_git_project(source: String, project_env_dir: &Path) {
     let mut callbacks = RemoteCallbacks::new();
     // TODO: allow user to configure their ssh key
     callbacks.credentials(|_url, username_from_url, _allowed_types| {
-        Cred::ssh_key_from_agent(
-            username_from_url.unwrap(),
-        )
+        Cred::ssh_key_from_agent(username_from_url.unwrap())
     });
     let mut fetch_opts = FetchOptions::new();
     fetch_opts.remote_callbacks(callbacks);
@@ -60,9 +57,7 @@ pub fn initialize_remote_git_project(source: String, project_env_dir: &Path) {
 
     match builder.clone(&source, project_env_dir) {
         Ok(repo) => repo,
-        Err(e) => panic!(
-            "Failed to clone '{}', error: {}", source, e
-        ), // TODO: better error checking, surely this should not panic
+        Err(e) => panic!("Failed to clone '{}', error: {}", source, e), // TODO: better error checking, surely this should not panic
     };
 
     // TODO: validate that the project has a valid project structure.
@@ -103,14 +98,14 @@ pub fn initialize_empty_project(project_env_dir: &Path) {
 
     // Add initial git commit
     let _ = Command::new("git")
-        .arg("add") 
+        .arg("add")
         .arg(".")
         .current_dir(project_env_dir)
         .output()
         .expect("Failed to execute command");
     let _ = Command::new("git")
         .arg("commit")
-        .arg("-m \"Initial commit\"")
+        .args(["-m", "\"Initial commit\""])
         .current_dir(project_env_dir)
         .output()
         .expect("Failed to execute command");

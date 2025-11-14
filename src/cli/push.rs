@@ -1,6 +1,6 @@
 use clap::Parser;
-use std::env;
 use git2::{Cred, PushOptions, RemoteCallbacks, Repository};
+use std::env;
 
 #[derive(Parser, Debug, Default)]
 pub struct Args {
@@ -24,19 +24,22 @@ pub fn execute(args: Args) {
     let mut callbacks = RemoteCallbacks::new();
     // TODO: allow user to configure their ssh key
     callbacks.credentials(|_url, username_from_url, _allowed_types| {
-        Cred::ssh_key_from_agent(
-            username_from_url.unwrap(),
-        )
+        Cred::ssh_key_from_agent(username_from_url.unwrap())
     });
 
     let mut push_opts = PushOptions::new();
     push_opts.remote_callbacks(callbacks);
 
     // Push changes
-    remote.push(&["refs/heads/main:refs/heads/main"],  Some(&mut push_opts))
+    remote
+        .push(&["refs/heads/main:refs/heads/main"], Some(&mut push_opts))
         .expect("Unable to push changes");
 
     // Push all tags
-    remote.push(&[format!("refs/tags/{}:refs/tags/{}", args.tag, args.tag)],  Some(&mut push_opts))
+    remote
+        .push(
+            &[format!("refs/tags/{}:refs/tags/{}", args.tag, args.tag)],
+            Some(&mut push_opts),
+        )
         .expect("Unable to push tags");
 }

@@ -1,12 +1,12 @@
 use clap::Parser;
-use std::env;
 use git2::{AutotagOption, Cred, FetchOptions, RemoteCallbacks, Repository};
+use std::env;
 
 #[derive(Parser, Debug, Default)]
-pub struct Args { 
+pub struct Args {
     // name of the tag
     // #[arg()]
-    // tag: String, 
+    // tag: String,
 }
 
 fn fast_forward(
@@ -84,21 +84,22 @@ pub fn execute(_args: Args) {
     let mut callbacks = RemoteCallbacks::new();
     // TODO: allow user to configure their ssh key
     callbacks.credentials(|_url, username_from_url, _allowed_types| {
-        Cred::ssh_key_from_agent(
-            username_from_url.unwrap(),
-        )
+        Cred::ssh_key_from_agent(username_from_url.unwrap())
     });
 
     let mut fetch_opts = FetchOptions::new();
     fetch_opts.remote_callbacks(callbacks);
     fetch_opts.download_tags(AutotagOption::All);
-    
+
     // Pull changes
-    remote.fetch(&["main"],  Some(&mut fetch_opts), None)
+    remote
+        .fetch(&["main"], Some(&mut fetch_opts), None)
         .expect("Unable to pull from remote");
 
     let fetch_head = repo.find_reference("FETCH_HEAD");
-    let fetch_commit = repo.reference_to_annotated_commit(&fetch_head.unwrap()).unwrap();
+    let fetch_commit = repo
+        .reference_to_annotated_commit(&fetch_head.unwrap())
+        .unwrap();
 
     // ref: https://github.com/rust-lang/git2-rs/blob/master/examples/pull.rs
     // Determine type of merge
@@ -121,19 +122,23 @@ pub fn execute(_args: Args) {
                     fetch_commit.id(),
                     true,
                     &format!("Setting {} to {}", "main", fetch_commit.id()),
-                ).unwrap();
+                )
+                .unwrap();
                 repo.set_head(&refname).unwrap();
                 repo.checkout_head(Some(
                     git2::build::CheckoutBuilder::default()
                         .allow_conflicts(true)
                         .conflict_style_merge(true)
                         .force(),
-                )).expect("Unable to checkout head");
+                ))
+                .expect("Unable to checkout head");
             }
         };
     } else if analysis.0.is_normal() {
         // do a normal merge
-        let head_commit = repo.reference_to_annotated_commit(&repo.head().unwrap()).unwrap();
+        let head_commit = repo
+            .reference_to_annotated_commit(&repo.head().unwrap())
+            .unwrap();
         normal_merge(&repo, &head_commit, &fetch_commit).expect("Unable to merge");
-    } 
+    }
 }
