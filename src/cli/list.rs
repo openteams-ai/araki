@@ -1,12 +1,12 @@
 use clap::Parser;
-use std::env;
 use git2::{Repository, Tag};
+use std::env;
 use std::process::Command;
 
 #[derive(Parser, Debug, Default)]
-pub struct Args { 
-    #[arg(long, help="Switch to print out the list of checkpoints as a tree")]
-    tree: bool
+pub struct Args {
+    #[arg(long, help = "Switch to print out the list of checkpoints as a tree")]
+    tree: bool,
 }
 
 pub fn execute(args: Args) {
@@ -22,13 +22,12 @@ pub fn execute(args: Args) {
 
     if args.tree {
         let tree_output = Command::new("git")
-            .arg("tree") 
+            .arg("tree")
             .current_dir(&project_env_dir)
             .output()
             .expect("Failed to execute command");
         let tree_stdout = String::from_utf8_lossy(&tree_output.stdout);
         println!("{}", tree_stdout);
-
     } else {
         let tags = repo.tag_names(Some("*")).unwrap();
 

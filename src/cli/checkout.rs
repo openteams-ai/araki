@@ -1,13 +1,13 @@
 use clap::Parser;
+use git2::Repository;
 use std::env;
-use git2::{Repository, Reference};
 use std::process::Command;
 
 #[derive(Parser, Debug, Default)]
-pub struct Args { 
+pub struct Args {
     // name of the tag
-    #[arg(help="Name of the tag")]
-    tag: String, 
+    #[arg(help = "Name of the tag")]
+    tag: String,
 }
 
 pub fn execute(args: Args) {
@@ -21,17 +21,19 @@ pub fn execute(args: Args) {
 
     let repo = Repository::open(&project_env_dir).expect("Failed to open repository");
 
-    let git_ref: Reference;
-    if args.tag == "latest" {
-        git_ref = repo.find_reference("refs/heads/main")
-            .expect("No tag found");
+    let git_ref = if args.tag == "latest" {
+        repo.find_reference("refs/heads/main")
+            .expect("No tag found")
     } else {
-        git_ref = repo.find_reference(&format!("refs/tags/{}", args.tag))
-            .expect("No tag found");
-    }
+        repo.find_reference(&format!("refs/tags/{}", args.tag))
+            .expect("No tag found")
+    };
 
     let git_ref_object = git_ref.peel(git2::ObjectType::Commit).unwrap();
-    let commit = git_ref_object.as_commit().ok_or_else(|| git2::Error::from_str("Tag did not peel to a commit")).unwrap();
+    let commit = git_ref_object
+        .as_commit()
+        .ok_or_else(|| git2::Error::from_str("Tag did not peel to a commit"))
+        .unwrap();
     repo.checkout_tree(commit.as_object(), None)
         .expect("Unable to checkout tag");
     repo.set_head_detached(commit.id())

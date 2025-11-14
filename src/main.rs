@@ -8,9 +8,9 @@ use crate::cli::init;
 use crate::cli::list;
 use crate::cli::pull;
 use crate::cli::push;
-use crate::cli::tag;
 use crate::cli::shell;
 use crate::cli::shim;
+use crate::cli::tag;
 
 pub mod cli;
 

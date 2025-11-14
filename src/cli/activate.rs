@@ -6,23 +6,25 @@ use crate::cli::common;
 #[derive(Parser, Debug, Default)]
 pub struct Args {
     // name of the environment
-    #[arg(help="Name of the environment")]
+    #[arg(help = "Name of the environment")]
     name: String,
 }
 
 pub fn execute(args: Args) {
     // Get the araki envs dir
-    let Some(araki_envs_dir) = common::get_default_araki_envs_dir()
-    else {
+    let Some(araki_envs_dir) = common::get_default_araki_envs_dir() else {
         println!("error!");
-        return
+        return;
     };
 
     // Check if the project already exists. If it does, exit
     let project_env_dir = araki_envs_dir.join(&args.name);
     if !project_env_dir.exists() {
-        println!("Environment {:?} does not exist. Please create one using `araki init`!", &args.name);
-        return
+        println!(
+            "Environment {:?} does not exist. Please create one using `araki init`!",
+            &args.name
+        );
+        return;
     }
 
     // Generate the activation script
@@ -36,8 +38,11 @@ pub fn execute(args: Args) {
         .expect("Failed to execute command");
 
     if !activation_output.status.success() {
-        println!("Command failed with exit code: {:?}", activation_output.status.code());
-        return
+        println!(
+            "Command failed with exit code: {:?}",
+            activation_output.status.code()
+        );
+        return;
     }
 
     let activation_stdout = String::from_utf8_lossy(&activation_output.stdout);
@@ -55,5 +60,8 @@ pub fn execute(args: Args) {
             echo ${{ref}}
         }}"
     );
-    println!("export prompt=\"({}:\\$(__araki_env_checkout)) $prompt\"", args.name);
+    println!(
+        "export prompt=\"({}:\\$(__araki_env_checkout)) $prompt\"",
+        args.name
+    );
 }

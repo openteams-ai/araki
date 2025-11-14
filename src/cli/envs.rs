@@ -18,16 +18,15 @@ pub enum EnvsSubcommand {
 }
 
 #[derive(Parser, Debug, Clone)]
-pub struct ListArgs { }
+pub struct ListArgs {}
 
 pub fn execute(args: Args) {
     match args.subcommand {
         EnvsSubcommand::List(_args) => {
             // Get the araki envs dir
-            let Some(araki_envs_dir) = common::get_default_araki_envs_dir()
-            else {
+            let Some(araki_envs_dir) = common::get_default_araki_envs_dir() else {
                 println!("error!");
-                return
+                return;
             };
 
             println!("Available envs:");

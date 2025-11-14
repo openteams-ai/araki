@@ -110,7 +110,6 @@ impl Shell {
                     .map_err(|_| "Could not get metadata for {shim_path:?}")?
                     .permissions();
 
-
                 // Set the shim to be executable
                 set_permissions(&shim_path, Permissions::from_mode(perms.mode() | 0o700))
                     .map_err(|_| "Unable to set permissions on {shim_path:?}")?;
@@ -123,7 +122,10 @@ impl Shell {
     fn print_env(&self) -> Result<(), String> {
         match self {
             Shell::Bash | Shell::Zsh => {
-                print!("PATH={}:$PATH", get_default_araki_bin_dir()?.to_string_lossy());
+                print!(
+                    "PATH={}:$PATH",
+                    get_default_araki_bin_dir()?.to_string_lossy()
+                );
                 Ok(())
             }
             Shell::Unknown(shell) => {
