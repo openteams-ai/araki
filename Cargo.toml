@@ -8,3 +8,4 @@ clap = { version = "4.5.49", features = ["derive"] }
 directories = "6.0.0"
 git2 = { version = "0.20.2", features = ["https", "ssh"] }
 sysinfo = "0.37.2"
+uuid = { version = "1.18.1", features = ["v4"] }
