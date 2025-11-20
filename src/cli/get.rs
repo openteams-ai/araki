@@ -1,7 +1,7 @@
 use std::{
     env::{current_dir, temp_dir},
     fmt::Display,
-    fs::{exists, remove_file, rename},
+    fs::{copy, exists, remove_file},
     path::Path,
     process,
 };
@@ -118,7 +118,7 @@ pub fn execute(args: Args) {
         Ok(result) => result,
         Err(err) => {
             eprintln!(
-                "Could not fetch a repository from {}. Error: {err}",
+                "Could not fetch a repository from {}.\nReason: {err}",
                 &args.env
             );
             process::exit(1);
@@ -126,17 +126,18 @@ pub fn execute(args: Args) {
     };
 
     let _ = common::git_clone(remote.as_ssh_url(), &temp_path).map_err(|err| {
-        eprintln!("{err}");
+        eprintln!("Unable to clone the environment.\nReason: {err}");
         process::exit(1);
     });
 
-    // Move from the temporary directory to the requested path
-    if rename(&tmp_toml, &target_toml).is_err() {
-        eprintln!("Error writing spec to {tmp_toml:?}. Aborting.");
+    // Copy from the temporary directory to the requested path; can't std::fs::rename here in case
+    // the temp directory exists on separate filesystem types (e.g. tmpfs -> ext4)
+    if copy(&tmp_toml, &target_toml).is_err() {
+        eprintln!("Error writing spec at {tmp_toml:?} to {target_toml:?}. Aborting.");
         process::exit(1);
     }
-    if rename(&tmp_lock, &target_lock).is_err() {
-        eprintln!("Error writing lockfile to {tmp_lock:?}. Aborting.");
+    if copy(&tmp_lock, &target_lock).is_err() {
+        eprintln!("Error writing lockfile at {tmp_lock:?} to {target_lock:?}. Aborting.");
         remove_lockspec(&cwd);
         process::exit(1);
     }
