@@ -7,6 +7,7 @@ use std::{
 };
 use uuid::Uuid;
 
+use crate::cli::common;
 use clap::Parser;
 use regex::Regex;
 
@@ -120,21 +121,24 @@ pub fn execute(args: Args) {
                 "Could not fetch a repository from {}. Error: {err}",
                 &args.env
             );
-            return;
+            process::exit(1);
         }
     };
 
-    crate::cli::init::initialize_remote_git_project(remote.as_ssh_url(), &temp_path);
+    let _ = common::git_clone(remote.as_ssh_url(), &temp_path).map_err(|err| {
+        eprintln!("{err}");
+        process::exit(1);
+    });
 
     // Move from the temporary directory to the requested path
     if rename(&tmp_toml, &target_toml).is_err() {
         eprintln!("Error writing spec to {tmp_toml:?}. Aborting.");
-        return;
+        process::exit(1);
     }
     if rename(&tmp_lock, &target_lock).is_err() {
         eprintln!("Error writing lockfile to {tmp_lock:?}. Aborting.");
         remove_lockspec(&cwd);
-        return;
+        process::exit(1);
     }
 
     // Install the environment
@@ -145,14 +149,14 @@ pub fn execute(args: Args) {
     {
         Ok(code) => code,
         Err(err) => {
-            eprintln!("Failed to start pixi. Is it installed?\nError: {err}");
-            return;
+            eprintln!("Failed to start pixi. Is it installed?\nReason: {err}");
+            process::exit(1);
         }
     };
     if child.wait().is_err() {
         eprintln!("pixi failed to install the environment. Aborting.");
         remove_lockspec(&cwd);
-        return;
+        process::exit(1);
     }
     println!("Successfully installed {}/{}", remote.org, remote.repo);
 }
