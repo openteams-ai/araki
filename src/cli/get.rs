@@ -1,11 +1,4 @@
-use std::{
-    env::{current_dir, temp_dir},
-    fmt::Display,
-    fs::{copy, exists, remove_file},
-    path::Path,
-    process,
-};
-use uuid::Uuid;
+use std::{env::current_dir, fmt::Display, fs::exists, process};
 
 use crate::cli::common;
 use clap::Parser;
@@ -20,7 +13,7 @@ pub struct Args {
 
 #[derive(Debug, Default)]
 pub struct RemoteRepo {
-    org: String,
+    org: Option<String>,
     repo: String,
     domain: Option<String>,
     protocol: Option<String>,
@@ -33,7 +26,7 @@ impl RemoteRepo {
             "{}{}/{}/{}",
             self.protocol.clone().unwrap_or("https://".into()),
             self.domain.clone().unwrap_or("github.com".into()),
-            self.org,
+            self.org.clone().unwrap_or("openteams-ai".into()),
             self.repo
         )
     }
@@ -43,7 +36,7 @@ impl RemoteRepo {
         format!(
             "git@{}:{}/{}.git",
             self.domain.clone().unwrap_or("github.com".into()),
-            self.org,
+            self.org.clone().unwrap_or("openteams-ai".into()),
             self.repo
         )
     }
@@ -61,7 +54,7 @@ impl Display for RemoteRepo {
 ///   assumed to live on github.
 fn parse_repo_arg(env: &str) -> Result<RemoteRepo, String> {
     let re = Regex::new(
-        r"((?<protocol>(git\+)?https?://)?(?<domain>github\.com)/)?(?<org>\w+)/(?<repo>\w+)",
+        r"((?<protocol>(git\+)?https?://)?(?<domain>github\.com)/)?((?<org>\w+)/)?(?<repo>\w+)",
     )
     .map_err(|_| "Invalid regex for processing git url.")?;
 
@@ -76,11 +69,7 @@ fn parse_repo_arg(env: &str) -> Result<RemoteRepo, String> {
         domain: captures
             .name("domain")
             .map(|name| name.as_str().to_string()),
-        org: captures
-            .name("org")
-            .ok_or("No org name found in {env}")?
-            .as_str()
-            .to_string(),
+        org: captures.name("org").map(|name| name.as_str().to_string()),
         repo: captures
             .name("repo")
             .ok_or("No repo name found in {env}")?
@@ -90,89 +79,38 @@ fn parse_repo_arg(env: &str) -> Result<RemoteRepo, String> {
 }
 
 pub fn execute(args: Args) {
-    let cwd = match current_dir() {
-        Ok(dir) => dir,
-        Err(_) => {
-            eprintln!("Could not get the current directory.");
-            return;
-        }
-    };
+    let cwd = current_dir().unwrap_or_else(|err| {
+        eprintln!("Could not get the current directory.\nReason: {err}");
+        process::exit(1);
+    });
     let target_toml = cwd.join("pixi.toml");
     let target_lock = cwd.join("pixi.lock");
-
-    let temp_path = temp_dir().join(Uuid::new_v4().to_string());
-    let tmp_toml = temp_path.as_path().join("pixi.toml");
-    let tmp_lock = temp_path.as_path().join("pixi.lock");
 
     // Check that the target directory is free of pixi.lock and pixi.toml
     if exists(&target_toml).is_err() {
         eprintln!("{target_toml:?} already exists. Aborting.");
-        return;
+        process::exit(1);
     }
     if exists(&target_lock).is_err() {
         eprintln!("{target_lock:?} already exists. Aborting.");
-        return;
+        process::exit(1);
     }
-
-    let remote = match parse_repo_arg(&args.env) {
-        Ok(result) => result,
-        Err(err) => {
-            eprintln!(
-                "Could not fetch a repository from {}.\nReason: {err}",
-                &args.env
-            );
-            process::exit(1);
-        }
-    };
-
-    let _ = common::git_clone(remote.as_ssh_url(), &temp_path).map_err(|err| {
-        eprintln!("Unable to clone the environment.\nReason: {err}");
+    let remote = parse_repo_arg(&args.env).unwrap_or_else(|err| {
+        eprintln!(
+            "Could not fetch a repository from {}.\nReason: {err}",
+            &args.env
+        );
+        process::exit(1);
+    });
+    let envs_dir = common::get_default_araki_envs_dir().unwrap_or_else(|| {
+        eprintln!("Could not get the default araki environment directory.");
         process::exit(1);
     });
 
-    // Copy from the temporary directory to the requested path; can't std::fs::rename here in case
-    // the temp directory exists on separate filesystem types (e.g. tmpfs -> ext4)
-    if copy(&tmp_toml, &target_toml).is_err() {
-        eprintln!("Error writing spec at {tmp_toml:?} to {target_toml:?}. Aborting.");
+    // Clone the repository to the araki environments directory
+    common::git_clone(remote.as_ssh_url(), &envs_dir).unwrap_or_else(|err| {
+        eprintln!("Unable to clone the environment.\nReason: {err}");
         process::exit(1);
-    }
-    if copy(&tmp_lock, &target_lock).is_err() {
-        eprintln!("Error writing lockfile at {tmp_lock:?} to {target_lock:?}. Aborting.");
-        remove_lockspec(&cwd);
-        process::exit(1);
-    }
-
-    // Install the environment
-    let mut child = match process::Command::new("pixi")
-        .arg("install")
-        .current_dir(&cwd)
-        .spawn()
-    {
-        Ok(code) => code,
-        Err(err) => {
-            eprintln!("Failed to start pixi. Is it installed?\nReason: {err}");
-            process::exit(1);
-        }
-    };
-    if child.wait().is_err() {
-        eprintln!("pixi failed to install the environment. Aborting.");
-        remove_lockspec(&cwd);
-        process::exit(1);
-    }
-    println!("Successfully installed {}/{}", remote.org, remote.repo);
-}
-
-/// Remove the lockspec files in the given directory.
-///
-/// * `dir`: Directory to remove lockspecs from.
-fn remove_lockspec(dir: &Path) {
-    let target_toml = dir.join("pixi.toml");
-    let target_lock = dir.join("pixi.lock");
-
-    if remove_file(&target_toml).is_err() {
-        eprintln!("Cannot remove file at {target_toml:?}.")
-    }
-    if remove_file(&target_lock).is_err() {
-        eprintln!("Cannot remove file at {target_lock:?}.")
-    }
+    });
+    todo!("Hardlink the lockspec from the env dir to the specified path, or to the CWD");
 }
