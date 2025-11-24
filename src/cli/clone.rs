@@ -79,7 +79,7 @@ impl Display for RemoteRepo {
 ///   assumed to live on github.
 fn parse_repo_arg(env: &str) -> Result<RemoteRepo, String> {
     let re = Regex::new(
-        r"((?<protocol>(git\+)?https?://)?(?<domain>github\.com)/)?((?<org>\w+)/)?(?<repo>\w+)",
+        r"((?<protocol>(git\+)?https?://)?(?<domain>github\.com)/)?((?<org>[-a-zA-Z0-9_.]{1,100}$)/)?(?<repo>[-a-zA-Z0-9_.]{1,100}$)",
     )
     .map_err(|_| "Invalid regex for processing git url.")?;
 
