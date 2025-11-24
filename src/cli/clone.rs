@@ -1,9 +1,9 @@
 use std::{
     env::current_dir,
     fmt::Display,
-    fs::{exists},
-    process::{exit, Command},
+    fs::exists,
     path::PathBuf,
+    process::{Command, exit},
     str::FromStr,
 };
 
@@ -15,11 +15,11 @@ use regex::Regex;
 #[command(arg_required_else_help = true)]
 pub struct Args {
     /// URL or <github org>/<repo name> of the lockspec to grab
-    #[arg(short, long, value_name="NAME")]
+    #[arg(short, long, value_name = "NAME")]
     env: String,
 
     /// Path where the lockspec should be cloned
-    #[arg(short, long, value_name="PATH")]
+    #[arg(short, long, value_name = "PATH")]
     path: Option<String>,
 }
 
@@ -135,12 +135,10 @@ pub fn execute(args: Args) {
         exit(1);
     });
 
-    common::git_clone(remote.as_ssh_url(), &path).unwrap_or_else(
-        |err| {
-            eprintln!("Unable to clone the lockspec: {err}");
-            exit(1);
-        },
-    );
+    common::git_clone(remote.as_ssh_url(), &path).unwrap_or_else(|err| {
+        eprintln!("Unable to clone the lockspec: {err}");
+        exit(1);
+    });
     if LockSpec::from_path(&remote.repo).is_err() {
         eprintln!(
             "Unable to get the lockspec for {}. Is pixi.toml or pixi.lock missing from {}/{} ?",
