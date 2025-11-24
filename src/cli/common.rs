@@ -8,25 +8,7 @@ use std::io::{Error, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 use toml::Table;
 
-pub const ARAKI_ENVS_DIR: &str = ".araki/envs";
 pub const ARAKI_BIN_DIR: &str = ".araki/bin";
-
-/// Get the user's araki envs directory, which by default
-/// is placed in their home directory
-pub fn get_default_araki_envs_dir() -> Result<PathBuf, String> {
-    let envs_dir = UserDirs::new()
-        .ok_or("Could not get user directory to store araki environments.")?
-        .home_dir()
-        .join(ARAKI_ENVS_DIR);
-
-    if !envs_dir.exists() {
-        println!("araki envs dir does not exist. Creating it at {envs_dir:?}");
-        fs::create_dir_all(&envs_dir).map_err(|err| {
-            format!("Could not create an environment directory at {envs_dir:?}.\nReason: {err}")
-        })?;
-    }
-    Ok(envs_dir)
-}
 
 pub fn get_default_araki_bin_dir() -> Result<PathBuf, String> {
     let dir = UserDirs::new()
@@ -41,27 +23,6 @@ pub fn get_default_araki_bin_dir() -> Result<PathBuf, String> {
         })?;
     }
     Ok(dir)
-}
-
-pub fn get_local_envs() -> Result<Vec<String>, String> {
-    let envs_dir = get_default_araki_envs_dir()?;
-
-    let mut ret = Vec::new();
-    for entry in fs::read_dir(&envs_dir).map_err(|err| format!("Can't read {envs_dir:?}: {err}"))? {
-        let fsobj = match entry {
-            Ok(ref item) => item,
-            Err(ref e) => return Err(format!("Can't read item {entry:?}: {e}")),
-        };
-        ret.push(
-            fsobj
-                .path()
-                .file_name()
-                .ok_or_else(|| format!("Can't get the basename of {entry:?}."))?
-                .to_string_lossy()
-                .to_string(),
-        );
-    }
-    Ok(ret)
 }
 
 /// Clone a git repo to a path.
@@ -190,25 +151,15 @@ impl LockSpec {
     pub fn specfile(&self) -> PathBuf {
         self.path.join("pixi.toml")
     }
+
     pub fn lockfile(&self) -> PathBuf {
         self.path.join("pixi.lock")
     }
-    pub fn hardlink_to(&self, to: &Path) -> Result<(), std::io::Error> {
-        let to_path = to.join("pixi.lock");
-        fs::hard_link(self.lockfile(), &to_path)?;
-        if let Err(err) = fs::hard_link(self.specfile(), to.join("pixi.toml")) {
-            match fs::remove_file(&to_path) {
-                Ok(_) => (),
-                Err(e) if e.kind() == ErrorKind::NotFound => (),
-                Err(e) => {
-                    eprintln!("Failed to clean up {to_path:?}: {e}.");
-                }
-            }
-            return Err(err);
-        };
-        Ok(())
-    }
-    pub fn from_directory<T>(path: T) -> Result<LockSpec, String>
+
+    /// Construct a LockSpec from the given path.
+    ///
+    /// * `path`: Path to a directory containing a pixi.lock and a pixi.toml
+    pub fn from_path<T>(path: T) -> Result<LockSpec, String>
     where
         T: AsRef<Path> + std::fmt::Debug,
     {
@@ -222,22 +173,11 @@ impl LockSpec {
             Err(format!("No lockspec files found in {:?}", path))
         }
     }
-    pub fn from_env_name(name: &str) -> Result<LockSpec, String> {
-        let env_dir = get_default_araki_envs_dir()?.join(name);
-        let ls = LockSpec {
-            path: env_dir.clone(),
-        };
-        if ls.files_exist() {
-            Ok(ls)
-        } else {
-            Err(format!(
-                "No environment named '{name}' exists in {env_dir:?}."
-            ))
-        }
-    }
+
     pub fn files_exist(&self) -> bool {
         self.lockfile().exists() && self.specfile().exists()
     }
+
     pub fn ensure_araki_metadata(&self, lockspec_name: &str) -> Result<(), String> {
         let specfile = self.specfile();
 
@@ -270,14 +210,9 @@ impl LockSpec {
         }
         Ok(())
     }
-    pub fn remove_lockspec_and_parent_dir(&self) -> Result<(), String> {
-        match fs::remove_dir_all(&self.path) {
-            Ok(_) => (),
-            Err(e) if e.kind() == ErrorKind::NotFound => (),
-            Err(e) => return Err(format!("Unable to remove {:?}: {e}", self.path)),
-        }
-        Ok(())
-    }
+
+    /// Remove the lockfile, specfile, and .araki-git/ directory from the given path.
+    /// No error is thrown if these files don't exist.
     pub fn remove_files(&self) -> Result<(), String> {
         match fs::remove_file(self.specfile()) {
             Ok(_) => (),
@@ -285,6 +220,11 @@ impl LockSpec {
             Err(e) => return Err(e.to_string()),
         }
         match fs::remove_file(self.lockfile()) {
+            Ok(_) => (),
+            Err(e) if e.kind() == ErrorKind::NotFound => (),
+            Err(e) => return Err(e.to_string()),
+        }
+        match fs::remove_dir_all(self.path.join(".araki-git")) {
             Ok(_) => (),
             Err(e) if e.kind() == ErrorKind::NotFound => (),
             Err(e) => return Err(e.to_string()),

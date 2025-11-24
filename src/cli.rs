@@ -3,7 +3,7 @@ pub mod checkout;
 pub mod common;
 pub mod deactivate;
 pub mod envs;
-pub mod get;
+pub mod clone;
 pub mod init;
 pub mod list;
 pub mod pull;
