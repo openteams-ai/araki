@@ -1,8 +1,6 @@
 use clap::{Parser, Subcommand};
 
-use crate::cli::activate;
 use crate::cli::checkout;
-use crate::cli::deactivate;
 use crate::cli::envs;
 use crate::cli::init;
 use crate::cli::list;
@@ -26,14 +24,8 @@ pub struct Cli {
 #[derive(Subcommand, Debug)]
 #[command(arg_required_else_help = true)]
 pub enum Command {
-    /// Activate an environment
-    Activate(activate::Args),
-
     /// Checkout a tag of an environment
     Checkout(checkout::Args),
-
-    /// Deactivate an environment
-    Deactivate(deactivate::Args),
 
     /// Manage environments
     Envs(envs::Args),
@@ -67,9 +59,7 @@ pub fn main() {
 
     if let Some(cmd) = cli.command {
         match cmd {
-            Command::Activate(cmd) => activate::execute(cmd),
             Command::Checkout(cmd) => checkout::execute(cmd),
-            Command::Deactivate(cmd) => deactivate::execute(cmd),
             Command::Envs(cmd) => envs::execute(cmd),
             Command::Init(cmd) => init::execute(cmd),
             Command::List(cmd) => list::execute(cmd),
