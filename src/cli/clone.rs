@@ -1,7 +1,7 @@
 use std::{
     env::current_dir,
     fmt::Display,
-    fs::{exists, remove_dir_all},
+    fs::{exists},
     process::{exit, Command},
     path::PathBuf,
     str::FromStr,
@@ -141,7 +141,6 @@ pub fn execute(args: Args) {
             exit(1);
         },
     );
-
     if LockSpec::from_path(&remote.repo).is_err() {
         eprintln!(
             "Unable to get the lockspec for {}. Is pixi.toml or pixi.lock missing from {}/{} ?",

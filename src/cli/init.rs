@@ -22,7 +22,7 @@ pub fn execute(args: Args) {
     println!("initializing env: {:?}", &args.name);
 
     // Get the araki envs dir
-    let Ok(araki_envs_dir) = common::get_default_araki_envs_dir() else {
+    let Some(araki_envs_dir) = common::get_default_araki_envs_dir() else {
         println!("error!");
         return;
     };
