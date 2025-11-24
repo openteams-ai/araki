@@ -2,11 +2,13 @@ use directories::UserDirs;
 use fs::OpenOptions;
 use git2::build::RepoBuilder;
 use git2::{Cred, FetchOptions, RemoteCallbacks};
+use std::env::temp_dir;
 use std::fmt::Display;
 use std::fs;
 use std::io::{Error, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 use toml::Table;
+use uuid::Uuid;
 
 pub const ARAKI_ENVS_DIR: &str = ".araki/envs";
 pub const ARAKI_BIN_DIR: &str = ".araki/bin";
@@ -47,9 +49,18 @@ pub fn get_default_araki_bin_dir() -> Result<PathBuf, String> {
 
 /// Clone a git repo to a path.
 ///
+/// The `.git/` repository gets renamed `.araki-git/`; any subsequent git commands won't target it
+/// unless `--git-dir=.araki-git/` is passed as a CLI arg, or `GIT_DIR=.araki-git/` is set in the
+/// environment variables.
+///
 /// * `repo`: URL of a git repo to clone
 /// * `path`: Path where the repo should be cloned
 pub fn git_clone(repo: String, path: &Path) -> Result<(), String> {
+    let temp_dir = temp_dir().join(Uuid::new_v4().to_string());
+    fs::create_dir_all(&temp_dir).map_err(|err| {
+        format!("Unable to clone {repo} to a temporary directory at {temp_dir:?}: {err}")
+    })?;
+
     let mut callbacks = RemoteCallbacks::new();
 
     // Keep track of whether we've tried to get credentials from ssh-agent.
@@ -86,8 +97,69 @@ pub fn git_clone(repo: String, path: &Path) -> Result<(), String> {
     builder.fetch_options(fetch_opts);
 
     let _ = builder
-        .clone(&repo, path)
-        .map_err(|err| format!("Failed to clone {repo}. Reason: {err}"))?;
+        .clone(&repo, &temp_dir)
+        .map_err(|err| format!("Failed to clone {repo} to {temp_dir:?}. Reason: {err}"))?;
+
+    fs::rename(temp_dir.join(".git"), temp_dir.join(".araki-git"))
+        .map_err(|err| format!("Error modifying the cloned repo: {err}"))?;
+
+    copy_directory_contents(&temp_dir, &path.to_path_buf()).map_err(|err| {
+        format!("Error copying the clone repo from {temp_dir:?} to {path:?}: {err}")
+    })?;
+
+    Ok(())
+}
+
+pub fn copy_directory_contents(from: &PathBuf, to: &PathBuf) -> std::io::Result<()> {
+    println!("Copy directory contents from {from:?} to {to:?}");
+
+    // Keep track of what has been copied so we can roll back if necessary
+    let mut copied: Vec<PathBuf> = vec![];
+    for item in fs::read_dir(from)? {
+        let entry = match item {
+            Ok(e) => e,
+            Err(ref err) => {
+                // Ignore any problems that arise during cleanup; just do our best
+                let _ = remove_files(copied);
+                return Err(Error::other(format!(
+                    "Error reading {item:?}.\nReason: {err}"
+                )));
+            }
+        };
+        let fsobj = to.join(entry.file_name());
+        if copy_fs_obj(from, &fsobj).is_err() {
+            // Ignore any problems that arise during cleanup; just do our best
+            let _ = remove_files(copied);
+            return Err(Error::other(format!(
+                "Unknown issue copying {from:?} to {to:?}."
+            )));
+        }
+        copied.push(fsobj);
+    }
+    Ok(())
+}
+
+/// Remove all the files or directories in the given vector if they exist.
+///
+/// Don't raise any error if a file or directory doesn't exist.
+///
+/// * `files`: List of files or directories to delete
+pub fn remove_files(files: Vec<PathBuf>) -> std::io::Result<()> {
+    for item in files {
+        if item.is_dir() {
+            match fs::remove_dir_all(item) {
+                Ok(_) => (),
+                Err(e) if e.kind() == ErrorKind::NotFound => (),
+                Err(e) => return Err(e),
+            };
+        } else {
+            match fs::remove_file(item) {
+                Ok(_) => (),
+                Err(e) if e.kind() == ErrorKind::NotFound => (),
+                Err(e) => return Err(e),
+            };
+        }
+    }
     Ok(())
 }
 
@@ -149,11 +221,15 @@ fn copy_fs_obj(from: &PathBuf, to: &Path) -> std::io::Result<()> {
     };
 
     if from.is_dir() {
-        copy_directory(from, &to.join(name))
+        let dirname = &to.join(name);
+        fs::create_dir_all(dirname)?;
+        copy_directory_contents(from, dirname)?;
     } else {
-        let _ = fs::copy(from, to.join(name));
-        Ok(())
+        let fname = to.join(name);
+        let _ = fs::copy(from, &fname)
+            .map_err(|err| Error::other(format!("Error copying {from:?} to {fname:?}: {err}")))?;
     }
+    Ok(())
 }
 
 #[derive(Debug, Clone)]

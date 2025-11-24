@@ -15,7 +15,7 @@ use regex::Regex;
 #[command(arg_required_else_help = true)]
 pub struct Args {
     /// URL or <github org>/<repo name> of the lockspec to grab
-    #[arg(short, long, value_name = "NAME")]
+    #[arg(value_name = "NAME")]
     env: String,
 
     /// Path where the lockspec should be cloned
@@ -79,7 +79,7 @@ impl Display for RemoteRepo {
 ///   assumed to live on github.
 fn parse_repo_arg(env: &str) -> Result<RemoteRepo, String> {
     let re = Regex::new(
-        r"((?<protocol>(git\+)?https?://)?(?<domain>github\.com)/)?((?<org>[-a-zA-Z0-9_.]{1,100}$)/)?(?<repo>[-a-zA-Z0-9_.]{1,100}$)",
+        r"((?<protocol>(git\+)?https?://)?(?<domain>github\.com)/)?((?<org>[-a-zA-Z0-9_.]{1,100})/)?(?<repo>[-a-zA-Z0-9_.]{1,100}$)",
     )
     .map_err(|_| "Invalid regex for processing git url.")?;
 
@@ -139,7 +139,7 @@ pub fn execute(args: Args) {
         eprintln!("Unable to clone the lockspec: {err}");
         exit(1);
     });
-    if LockSpec::from_path(&remote.repo).is_err() {
+    if LockSpec::from_path(&path).is_err() {
         eprintln!(
             "Unable to get the lockspec for {}. Is pixi.toml or pixi.lock missing from {}/{} ?",
             remote.get_repo(),
