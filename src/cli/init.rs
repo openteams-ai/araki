@@ -1,6 +1,4 @@
 use clap::Parser;
-use git2::build::RepoBuilder;
-use git2::{Cred, FetchOptions, RemoteCallbacks};
 use std::env::temp_dir;
 use std::fs;
 use std::path::Path;
@@ -60,45 +58,8 @@ pub fn execute(args: Args) {
 
 pub fn initialize_remote_git_project(repo: String, project_env_dir: &Path) {
     println!("Pulling from remote repository '{}'", repo);
-    let mut callbacks = RemoteCallbacks::new();
-
-    // Keep track of whether we've tried to get credentials from ssh-agent.
-    // See https://github.com/nodegit/nodegit/issues/1133 for an example of this, but it affects
-    // git2-rs as well; see https://github.com/rust-lang/git2-rs/issues/1140 and
-    // https://github.com/rust-lang/git2-rs/issues/347 for more context.
-    let mut tried_agent = false;
-
-    callbacks.credentials(|_url, username_from_url, allowed_types| {
-        let username = username_from_url.ok_or(git2::Error::from_str(
-            "Unable to get the ssh username from the URL.",
-        ))?;
-        if allowed_types.is_ssh_key() {
-            Cred::ssh_key_from_agent(username).inspect(|_| {
-                if tried_agent {
-                    eprintln!(
-                        "Unable to authenticate via ssh. Is ssh-agent running, and does it \
-                        have your git credentials?"
-                    );
-                    exit(1);
-                }
-                tried_agent = true
-            })
-        } else {
-            Err(git2::Error::from_str(
-                "araki only supports ssh for git interactions. Please \
-                    configure ssh-agent.",
-            ))
-        }
-    });
-
-    let mut fetch_opts = FetchOptions::new();
-    fetch_opts.remote_callbacks(callbacks);
-
-    let mut builder = RepoBuilder::new();
-    builder.fetch_options(fetch_opts);
-
-    let _ = builder.clone(&repo, project_env_dir).map_err(|err| {
-        eprintln!("Failed to clone {repo}. Reason: {err}");
+    let _ = common::git_clone(repo, project_env_dir).map_err(|err| {
+        eprintln!("{err}");
         exit(1);
     });
 

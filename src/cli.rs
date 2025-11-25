@@ -1,4 +1,5 @@
 pub mod checkout;
+pub mod clone;
 pub mod common;
 pub mod envs;
 pub mod init;

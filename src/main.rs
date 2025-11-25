@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 
 use crate::cli::checkout;
+use crate::cli::clone;
 use crate::cli::envs;
 use crate::cli::init;
 use crate::cli::list;
@@ -26,6 +27,9 @@ pub struct Cli {
 pub enum Command {
     /// Checkout a tag of an environment
     Checkout(checkout::Args),
+
+    /// Clone a lockspec from a remote repository and install it in the current directory
+    Clone(clone::Args),
 
     /// Manage environments
     Envs(envs::Args),
@@ -61,6 +65,7 @@ pub fn main() {
         match cmd {
             Command::Checkout(cmd) => checkout::execute(cmd),
             Command::Envs(cmd) => envs::execute(cmd),
+            Command::Clone(cmd) => clone::execute(cmd),
             Command::Init(cmd) => init::execute(cmd),
             Command::List(cmd) => list::execute(cmd),
             Command::Pull(cmd) => pull::execute(cmd),
