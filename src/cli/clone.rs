@@ -1,7 +1,6 @@
 use std::{
     env::current_dir,
     fmt::Display,
-    fs::exists,
     path::PathBuf,
     process::{Command, exit},
     str::FromStr,
@@ -118,18 +117,12 @@ pub fn execute(args: Args) {
         })
         .unwrap_or(cwd.clone());
 
-    let target_toml = path.join("pixi.toml");
-    let target_lock = path.join("pixi.lock");
-
     // Check that the target directory has no existing lockspec pixi.lock and pixi.toml
-    if exists(&target_toml).is_err() {
-        eprintln!("{target_toml:?} already exists. Aborting.");
+    if LockSpec::from_path(&path).is_ok() {
+        eprintln!("A lockspec already exists at {path:?}. Aborting.");
         exit(1);
     }
-    if exists(&target_lock).is_err() {
-        eprintln!("{target_lock:?} already exists. Aborting.");
-        exit(1);
-    }
+
     let remote = parse_repo_arg(&args.env).unwrap_or_else(|err| {
         eprintln!("{} is not a valid lockspec repository: {err}", &args.env);
         exit(1);
@@ -139,10 +132,11 @@ pub fn execute(args: Args) {
         eprintln!("Unable to clone the lockspec: {err}");
         exit(1);
     });
+
     if LockSpec::from_path(&path).is_err() {
         eprintln!(
-            "Unable to get the lockspec for {}. Is pixi.toml or pixi.lock missing from {}/{} ?",
-            remote.get_repo(),
+            "The cloned lockspec repo is not valid. Is pixi.toml or pixi.lock missing from \
+                {}/{} ?",
             remote.get_org(),
             remote.get_repo()
         );

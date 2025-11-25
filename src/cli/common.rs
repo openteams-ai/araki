@@ -53,6 +53,9 @@ pub fn get_default_araki_bin_dir() -> Result<PathBuf, String> {
 /// unless `--git-dir=.araki-git/` is passed as a CLI arg, or `GIT_DIR=.araki-git/` is set in the
 /// environment variables.
 ///
+/// Additionally modify `.gitignore` to ignore `.araki-git/` so that it doesn't get treated as
+/// a regular file.
+///
 /// * `repo`: URL of a git repo to clone
 /// * `path`: Path where the repo should be cloned
 pub fn git_clone(repo: String, path: &Path) -> Result<(), String> {
@@ -100,6 +103,7 @@ pub fn git_clone(repo: String, path: &Path) -> Result<(), String> {
         .clone(&repo, &temp_dir)
         .map_err(|err| format!("Failed to clone {repo} to {temp_dir:?}. Reason: {err}"))?;
 
+    // Rename `.git` -> `.araki-git`
     fs::rename(temp_dir.join(".git"), temp_dir.join(".araki-git"))
         .map_err(|err| format!("Error modifying the cloned repo: {err}"))?;
 
@@ -107,12 +111,29 @@ pub fn git_clone(repo: String, path: &Path) -> Result<(), String> {
         format!("Error copying the clone repo from {temp_dir:?} to {path:?}: {err}")
     })?;
 
+    // If need be, write `.araki-git` to `.gitignore`, otherwise git treats it as a regular file
+    // even if GIT_DIR is set
+    let gitignore = path.join(".gitignore");
+    let entry = ".araki-git/";
+    if !std::fs::read_to_string(&gitignore).is_ok_and(|content| content.contains(entry)) {
+        let mut file = OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(&gitignore)
+            .map_err(|err| format!("Unable to open to {gitignore:?}: {err}"))?;
+
+        writeln!(file, ".araki-git/")
+            .map_err(|err| format!("Unable to write to {gitignore:?}: {err}"))?;
+    }
+
     Ok(())
 }
 
+/// Copy the contents of a directory to another directory.
+///
+/// * `from`: Directory containing some filesystem objects
+/// * `to`: Directory where they should be copied
 pub fn copy_directory_contents(from: &PathBuf, to: &PathBuf) -> std::io::Result<()> {
-    println!("Copy directory contents from {from:?} to {to:?}");
-
     // Keep track of what has been copied so we can roll back if necessary
     let mut copied: Vec<PathBuf> = vec![];
     for item in fs::read_dir(from)? {
@@ -127,7 +148,7 @@ pub fn copy_directory_contents(from: &PathBuf, to: &PathBuf) -> std::io::Result<
             }
         };
         let fsobj = to.join(entry.file_name());
-        if copy_fs_obj(from, &fsobj).is_err() {
+        if copy_fs_obj(&entry.path(), &fsobj).is_err() {
             // Ignore any problems that arise during cleanup; just do our best
             let _ = remove_files(copied);
             return Err(Error::other(format!(
@@ -216,18 +237,12 @@ pub fn copy_directory(from: &PathBuf, to: &PathBuf) -> std::io::Result<()> {
 /// * `from`: Path to be copied
 /// * `to`: Destination of the copied object
 fn copy_fs_obj(from: &PathBuf, to: &Path) -> std::io::Result<()> {
-    let Some(name) = from.file_name() else {
-        return Err(Error::other(format!("Can't get filename of {from:?}")));
-    };
-
     if from.is_dir() {
-        let dirname = &to.join(name);
-        fs::create_dir_all(dirname)?;
-        copy_directory_contents(from, dirname)?;
+        fs::create_dir_all(to)?;
+        copy_directory_contents(from, &to.to_path_buf())?;
     } else {
-        let fname = to.join(name);
-        let _ = fs::copy(from, &fname)
-            .map_err(|err| Error::other(format!("Error copying {from:?} to {fname:?}: {err}")))?;
+        let _ = fs::copy(from, to)
+            .map_err(|err| Error::other(format!("Error copying {from:?} to {to:?}: {err}")))?;
     }
     Ok(())
 }
@@ -270,10 +285,14 @@ impl LockSpec {
         }
     }
 
+    /// Check whether a lockspec (lockfile+specfile) exist in self.path.
     pub fn files_exist(&self) -> bool {
         self.lockfile().exists() && self.specfile().exists()
     }
 
+    /// Ensure that the araki metadata containing the lockspec name is written to the specfile.
+    ///
+    /// * `lockspec_name`: Lockspec name to write to the file
     pub fn ensure_araki_metadata(&self, lockspec_name: &str) -> Result<(), String> {
         let specfile = self.specfile();
 
