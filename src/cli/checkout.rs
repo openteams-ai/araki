@@ -12,7 +12,7 @@ pub struct Args {
 
 pub fn execute(args: Args) {
     let repo = common::get_araki_git_repo().unwrap_or_else(|err| {
-        eprintln!("Could recognize the araki repo: {err}");
+        eprintln!("Couldn't recognize the araki repo: {err}");
         exit(1);
     });
 

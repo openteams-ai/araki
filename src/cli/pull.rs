@@ -73,7 +73,7 @@ fn normal_merge(
 
 pub fn execute(_args: Args) {
     let repo = common::get_araki_git_repo().unwrap_or_else(|err| {
-        eprintln!("Could recognize the araki repo: {err}");
+        eprintln!("Couldn't recognize the araki repo: {err}");
         exit(1);
     });
     let mut remote = repo.find_remote("origin").unwrap();
