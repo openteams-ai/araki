@@ -10,6 +10,7 @@ version = "0.1.0"
 build = "cargo build"
 start = "cargo run"
 fmt = "cargo fmt --all"
+clippy = "cargo clippy --fix"
 
 [dependencies]
 rust = ">=1.90.0,<1.91"

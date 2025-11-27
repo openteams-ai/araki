@@ -42,7 +42,7 @@ pub fn get_araki_git_repo() -> Result<Repository, Error> {
             araki_git_dir
         )));
     }
-    return Repository::open(araki_git_dir).map_err(|err| Error::other(err));
+    Repository::open(araki_git_dir).map_err(Error::other)
 }
 
 pub fn get_default_araki_bin_dir() -> Result<PathBuf, String> {
