@@ -1,4 +1,7 @@
 use clap::Parser;
+use indicatif::HumanDuration;
+use std::time::{Instant, Duration};
+use console::{style};
 use std::env::{
     current_dir,
 };
@@ -28,6 +31,7 @@ pub struct Args {
 // https://users.rust-lang.org/t/how-can-i-do-git-add-some-file-rs-git-commit-m-message-git-push-with-git2-crate-on-a-bare-repo/94109/4
 // for the approach used here.
 pub async fn execute(args: Args) {
+    let started = Instant::now();
     let cwd = current_dir().unwrap_or_else(|err| {
         eprintln!("Could not get the current directory: {err}");
         exit(1);
@@ -48,6 +52,10 @@ pub async fn execute(args: Args) {
     }
 
     // Create a new respository
+    println!(
+        "{} Creating lockspec repository...",
+        style("[1/4]").bold().dim(),
+    );
     let org = "openteams-ai";
     let backend = backends::get_current_backend();
     backend
@@ -63,10 +71,18 @@ pub async fn execute(args: Args) {
 
     // Clone the repository to the target directory. This also creates a .araki-git for tracking
     // lockspec git versions
+    println!(
+        "{} Cloning lockspec repository...",
+        style("[2/4]").bold().dim(),
+    );
     let remote_url = backend.get_repo_info(org.to_string(), args.name).as_ssh_url();
     common::git_clone(remote_url.clone(), &path);
 
     // Commit the lockspec as a new change
+    println!(
+        "{} Committing lockspec...",
+        style("[3/4]").bold().dim(),
+    );
     let repo = common::get_araki_git_repo().unwrap_or_else(|err| {
         eprintln!("Couldn't recognize the araki repo: {err}");
         exit(1);
@@ -131,6 +147,10 @@ pub async fn execute(args: Args) {
         });
 
     // Push to remote
+    println!(
+        "{} Pushing changes to remote...",
+        style("[4/4]").bold().dim(),
+    );
     let mut origin = repo.remote("origin", &remote_url).unwrap_or_else(|err| {
         eprintln!("Unable to push lockspec changes to remote: {err}");
         exit(1);
@@ -141,5 +161,6 @@ pub async fn execute(args: Args) {
             eprintln!("Failed to push changes to remote: {err}");
             exit(1);
         });
-    println!("Lockspec changes pushed to remote.")
+    println!("Lockspec changes pushed to remote.");
+    println!("Done in {}", HumanDuration(started.elapsed()));
 }
