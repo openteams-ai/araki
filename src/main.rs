@@ -68,7 +68,7 @@ pub async fn main() {
             Command::Checkout(cmd) => checkout::execute(cmd),
             Command::Envs(cmd) => envs::execute(cmd),
             Command::Clone(cmd) => clone::execute(cmd),
-            Command::Init(cmd) => init::execute(cmd),
+            Command::Init(cmd) => init::execute(cmd).await,
             Command::List(cmd) => list::execute(cmd),
             Command::Pull(cmd) => pull::execute(cmd),
             Command::Push(cmd) => push::execute(cmd),

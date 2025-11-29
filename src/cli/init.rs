@@ -1,16 +1,17 @@
 use clap::Parser;
 use indicatif::HumanDuration;
-use std::time::{Instant, Duration};
-use console::{style};
-use std::env::{
-    current_dir,
-};
+use std::time::Instant;
+use console::style;
+use std::env::current_dir;
 use std::path::{PathBuf};
 use std::process::{exit};
 use std::str::FromStr;
 
 use crate::cli::common;
 use crate::backends::{self, Backend};
+
+
+const ORG: &str = "openteams-ai";
 
 #[derive(Parser, Debug)]
 #[command(arg_required_else_help = true)]
@@ -52,21 +53,26 @@ pub async fn execute(args: Args) {
     }
 
     // Create a new respository
+    let backend = backends::get_current_backend()
+        .unwrap_or_else(|err| {
+            eprintln!("Unable to get the current backend: {err}");
+            exit(1);
+        });
     println!(
-        "{} Creating lockspec repository...",
+        "{} Creating lockspec repository at {}...",
         style("[1/4]").bold().dim(),
+        backend.get_repo_info(ORG, &args.name).as_url(),
     );
-    let org = "openteams-ai";
-    let backend = backends::get_current_backend();
     backend
-        .create_repository(org.to_string(), args.name.clone())
+        .create_repository(ORG, &args.name)
         .await
-        .map_err(|err| {
+        .unwrap_or_else(|err| {
             eprintln!(
                 "Error creating a new repository {} for organization {}: {err}",
                 args.name,
-                org,
-            )
+                ORG,
+            );
+            exit(1);
         });
 
     // Clone the repository to the target directory. This also creates a .araki-git for tracking
@@ -75,8 +81,12 @@ pub async fn execute(args: Args) {
         "{} Cloning lockspec repository...",
         style("[2/4]").bold().dim(),
     );
-    let remote_url = backend.get_repo_info(org.to_string(), args.name).as_ssh_url();
-    common::git_clone(remote_url.clone(), &path);
+    let remote_url = backend.get_repo_info(ORG, &args.name).as_ssh_url();
+    common::git_clone(remote_url.clone(), &path)
+        .unwrap_or_else(|err| {
+            eprintln!("Failed to clone the repository: {err}");
+            exit(1);
+        });
 
     // Commit the lockspec as a new change
     println!(

@@ -2,7 +2,6 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env};
 use std::error::Error;
-use std::process::exit;
 
 use reqwest::{Client, header};
 
@@ -16,10 +15,10 @@ struct GitHubCreateRepositoryRequestBody {
 
 #[async_trait]
 pub trait Backend {
-    async fn is_existing_lockspec(&self, org: String, name: String)
+    async fn is_existing_lockspec(&self, org: &str, name: &str)
     -> Result<bool, Box<dyn Error>>;
-    async fn create_repository(&self, org: String, name: String) -> Result<(), Box<dyn Error>>;
-    fn get_repo_info(&self, org: String, repo: String) -> RemoteRepo;
+    async fn create_repository(&self, org: &str, name: &str) -> Result<(), Box<dyn Error>>;
+    fn get_repo_info(&self, org: &str, repo: &str) -> RemoteRepo;
 }
 
 pub struct GitHubBackend<'a> {
@@ -31,8 +30,8 @@ pub struct GitHubBackend<'a> {
 impl Backend for GitHubBackend<'_> {
     async fn is_existing_lockspec(
         &self,
-        org: String,
-        name: String,
+        org: &str,
+        name: &str,
     ) -> Result<bool, Box<dyn Error>> {
         let resp = self
             .client
@@ -45,9 +44,9 @@ impl Backend for GitHubBackend<'_> {
         println!("{resp:?}");
         Ok(resp.contains_key("name"))
     }
-    async fn create_repository(&self, org: String, name: String) -> Result<(), Box<dyn Error>> {
+    async fn create_repository(&self, org: &str, name: &str) -> Result<(), Box<dyn Error>> {
         let body = GitHubCreateRepositoryRequestBody {
-            name: name.clone(),
+            name: name.to_string(),
             private: true,
         };
         let status = self
@@ -64,10 +63,10 @@ impl Backend for GitHubBackend<'_> {
             Err(format!("Failed to create repository for {name}").into())
         }
     }
-    fn get_repo_info(&self, org: String, repo: String) -> RemoteRepo {
+    fn get_repo_info(&self, org: &str, repo: &str) -> RemoteRepo {
         RemoteRepo::new(
-            Some(org),
-            repo,
+            Some(org.to_string()),
+            repo.to_string(),
             Some("github.com".to_string()),
             Some("https://".to_string()),
         )
@@ -108,9 +107,7 @@ impl GitHubBackend<'_> {
     }
 }
 
-pub fn get_current_backend() -> impl Backend {
-    GitHubBackend::new().unwrap_or_else(|err| {
-        eprintln!("Couldn't create a GitHub backend: {err}");
-        exit(1);
-    })
+/// Get the currently configured araki backend.
+pub fn get_current_backend() -> Result<impl Backend, Box<dyn Error>> {
+    GitHubBackend::new()
 }
