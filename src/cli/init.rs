@@ -46,9 +46,13 @@ pub async fn execute(args: Args) {
             })
         })
         .unwrap_or(cwd.clone());
+    let path_str = path.to_str().unwrap_or_else(|| {
+        eprintln!("Could not convert {path:?} to a string.");
+        exit(1);
+    });
 
     if common::get_araki_git_repo().is_ok() {
-        eprintln!("{path:?} is already managed by araki.");
+        eprintln!("{path_str} is already managed by araki.");
         exit(1);
     }
 
@@ -78,7 +82,7 @@ pub async fn execute(args: Args) {
     // Clone the repository to the target directory. This also creates a .araki-git for tracking
     // lockspec git versions
     println!(
-        "{} Cloning lockspec repository to {path:?}...",
+        "{} Cloning lockspec repository to {path_str}...",
         style("[2/4]").bold().dim(),
     );
     common::git_clone(backend.get_repo_info(ORG, &args.name).as_ssh_url(), &path)
@@ -103,7 +107,7 @@ pub async fn execute(args: Args) {
     });
     for item in ["pixi.toml", "pixi.lock"] {
         index.add_path(Path::new(item)).unwrap_or_else(|err| {
-            eprintln!("Couldn't add {item:?} to the git index: {err}");
+            eprintln!("Couldn't add {item} to the git index: {err}");
             exit(1);
         });
     }
@@ -111,7 +115,6 @@ pub async fn execute(args: Args) {
         eprintln!("Couldn't write to the git index: {err}");
         exit(1);
     });
-
     let new_tree_oid = index.write_tree().unwrap_or_else(|err| {
         eprintln!("Failed to write the git tree from the index: {err}");
         exit(1);
@@ -124,8 +127,7 @@ pub async fn execute(args: Args) {
         eprintln!("Unable to get the author to use for the commit: {err}");
         exit(1);
     });
-
-    repo
+    let commit_oid = repo
         .commit(
             None,
             &author,
@@ -138,6 +140,34 @@ pub async fn execute(args: Args) {
             eprintln!("Error committing changes: {err}");
             exit(1);
         });
+
+    // Create a new (default) branch called 'main'
+    let branch = repo
+        .branch(
+            "main",
+            &repo
+                .find_commit(commit_oid)
+                .unwrap_or_else(|err| {
+                    eprintln!("Unable to find the new commit: {err}");
+                    exit(1);
+                }),
+            true
+        )
+        .unwrap_or_else(|err| {
+            eprintln!("Unable to generate a main branch with the new commit: {err}");
+            exit(1);
+        });
+
+    // Set the head to the new branch reference
+    let branch_ref = branch.into_reference();
+    let branch_ref_name = branch_ref.name().unwrap_or_else(|| {
+        eprintln!("Could not convert branch reference into name.");
+        exit(1);
+    });
+    repo.set_head(branch_ref_name).unwrap_or_else(|err| {
+        eprintln!("Unable to set the repository head: {err}");
+        exit(1);
+    });
 
     // Push to remote
     println!(

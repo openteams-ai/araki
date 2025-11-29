@@ -156,7 +156,7 @@ pub fn git_push(remote: &str, branch: &str) -> Result<(), git2::Error> {
         git2::Error::from_str(format!("{err}").as_str())
     })?;
     let mut origin = repo.find_remote(remote)?;
-    origin.push(&[branch], Some(&mut push_options))?;
+    origin.push(&[format!("refs/heads/{branch}")], Some(&mut push_options))?;
     Ok(())
 }
 
