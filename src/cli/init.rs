@@ -3,7 +3,7 @@ use indicatif::HumanDuration;
 use std::time::Instant;
 use console::style;
 use std::env::current_dir;
-use std::path::{PathBuf};
+use std::path::{Path, PathBuf};
 use std::process::{exit};
 use std::str::FromStr;
 
@@ -21,7 +21,7 @@ pub struct Args {
 
     /// Commit message
     #[arg(short, long, value_name="MESSAGE")]
-    message: String,
+    message: Option<String>,
 
     /// Path to the target directory
     #[arg()]
@@ -68,7 +68,7 @@ pub async fn execute(args: Args) {
         .await
         .unwrap_or_else(|err| {
             eprintln!(
-                "Error creating a new repository {} for organization {}: {err}",
+                "Error creating a new repository '{}' for organization '{}': {err}",
                 args.name,
                 ORG,
             );
@@ -103,7 +103,7 @@ pub async fn execute(args: Args) {
         exit(1);
     });
     for item in ["pixi.toml", "pixi.lock"] {
-        index.add_path(&path.join(item)).unwrap_or_else(|err| {
+        index.add_path(Path::new(item)).unwrap_or_else(|err| {
             eprintln!("Couldn't add {item:?} to the git index: {err}");
             exit(1);
         });
@@ -147,7 +147,7 @@ pub async fn execute(args: Args) {
             Some("HEAD"),
             &author,
             &author,
-            &args.message,
+            &args.message.unwrap_or("Initial commit".to_string()),
             &new_tree,
             &[&parent],
         )
