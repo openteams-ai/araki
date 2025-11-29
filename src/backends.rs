@@ -2,8 +2,11 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env};
 use std::error::Error;
+use std::process::exit;
 
 use reqwest::{Client, header};
+
+use crate::cli::clone::RemoteRepo;
 
 #[derive(Serialize, Deserialize)]
 struct GitHubCreateRepositoryRequestBody {
@@ -16,6 +19,7 @@ pub trait Backend {
     async fn is_existing_lockspec(&self, org: String, name: String)
     -> Result<bool, Box<dyn Error>>;
     async fn create_repository(&self, org: String, name: String) -> Result<(), Box<dyn Error>>;
+    fn get_repo_info(&self, org: String, repo: String) -> RemoteRepo;
 }
 
 pub struct GitHubBackend<'a> {
@@ -60,11 +64,18 @@ impl Backend for GitHubBackend<'_> {
             Err(format!("Failed to create repository for {name}").into())
         }
     }
+    fn get_repo_info(&self, org: String, repo: String) -> RemoteRepo {
+        RemoteRepo::new(
+            Some(org),
+            repo,
+            Some("github.com".to_string()),
+            Some("https://".to_string()),
+        )
+    }
 }
 
 impl GitHubBackend<'_> {
     pub fn new() -> Result<Self, Box<dyn Error>> {
-
         let token = env::var_os("GITHUB_TOKEN")
             .ok_or(
                 "No GITHUB_TOKEN found in the environment. Aborting."
@@ -95,4 +106,11 @@ impl GitHubBackend<'_> {
             client: Client::builder().default_headers(headers).build()?,
         })
     }
+}
+
+pub fn get_current_backend() -> impl Backend {
+    GitHubBackend::new().unwrap_or_else(|err| {
+        eprintln!("Couldn't create a GitHub backend: {err}");
+        exit(1);
+    })
 }

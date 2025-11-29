@@ -1,117 +1,145 @@
 use clap::Parser;
-use std::env::temp_dir;
-use std::fs;
-use std::path::Path;
-use std::process::{Command, exit};
-use uuid::Uuid;
+use std::env::{
+    current_dir,
+};
+use std::path::{PathBuf};
+use std::process::{exit};
+use std::str::FromStr;
 
 use crate::cli::common;
+use crate::backends::{self, Backend};
 
-#[derive(Parser, Debug, Default)]
+#[derive(Parser, Debug)]
+#[command(arg_required_else_help = true)]
 pub struct Args {
-    /// Name of the environment
-    #[arg()]
+    /// Name of the lockspec
     name: String,
 
-    /// Remote repository to pull environment from
-    #[arg(long)]
-    repository: Option<String>,
+    /// Commit message
+    #[arg(short, long, value_name="MESSAGE")]
+    message: String,
+
+    /// Path to the target directory
+    #[arg()]
+    path: Option<String>,
 }
 
-pub fn execute(args: Args) {
-    println!("initializing env: {:?}", &args.name);
+// Committing is complicated with libgit2. See
+// https://users.rust-lang.org/t/how-can-i-do-git-add-some-file-rs-git-commit-m-message-git-push-with-git2-crate-on-a-bare-repo/94109/4
+// for the approach used here.
+pub async fn execute(args: Args) {
+    let cwd = current_dir().unwrap_or_else(|err| {
+        eprintln!("Could not get the current directory: {err}");
+        exit(1);
+    });
+    let path = args
+        .path
+        .map(|p| {
+            PathBuf::from_str(&p).unwrap_or_else(|_| {
+                eprintln!("{p} is not a valid path.");
+                exit(1);
+            })
+        })
+        .unwrap_or(cwd.clone());
 
-    // Get the araki envs dir
-    let Some(araki_envs_dir) = common::get_default_araki_envs_dir() else {
-        println!("error!");
-        return;
-    };
-
-    // Check if the project already exists. If it does, exit
-    let project_env_dir = araki_envs_dir.join(&args.name);
-    if project_env_dir.exists() {
-        eprintln!(
-            "Environment {:?} already exists! {project_env_dir:?}",
-            &args.name
-        );
-        return;
-    }
-
-    // Since initializing the env repository can fail in a number of different ways,
-    // we clone into a temporary directory first. If that's successful, we then move it to the
-    // target directory.
-    let temp_path = temp_dir().join(Uuid::new_v4().to_string());
-    if let Err(err) = fs::create_dir_all(&temp_path) {
-        eprintln!("Unable to initialize the repote repository at {temp_path:?}. Reason: {err}",);
+    if common::get_araki_git_repo().is_ok() {
+        eprintln!("{path:?} is already managed by araki.");
         exit(1);
     }
-    if let Some(src) = args.repository {
-        initialize_remote_git_project(src, &temp_path);
-    } else {
-        initialize_empty_project(&temp_path);
-    }
-    if fs::rename(&temp_path, &project_env_dir).is_err() {
-        eprintln!("Error writing environment to {project_env_dir:?}");
-        exit(1);
-    }
-}
 
-pub fn initialize_remote_git_project(repo: String, project_env_dir: &Path) {
-    println!("Pulling from remote repository '{}'", repo);
-    let _ = common::git_clone(repo, project_env_dir).map_err(|err| {
-        eprintln!("{err}");
+    // Create a new respository
+    let org = "openteams-ai";
+    let backend = backends::get_current_backend();
+    backend
+        .create_repository(org.to_string(), args.name.clone())
+        .await
+        .map_err(|err| {
+            eprintln!(
+                "Error creating a new repository {} for organization {}: {err}",
+                args.name,
+                org,
+            )
+        });
+
+    // Clone the repository to the target directory. This also creates a .araki-git for tracking
+    // lockspec git versions
+    let remote_url = backend.get_repo_info(org.to_string(), args.name).as_ssh_url();
+    common::git_clone(remote_url.clone(), &path);
+
+    // Commit the lockspec as a new change
+    let repo = common::get_araki_git_repo().unwrap_or_else(|err| {
+        eprintln!("Couldn't recognize the araki repo: {err}");
         exit(1);
     });
 
-    // TODO: validate that the project has a valid project structure.
-    // That means it has a
-    //  * pixi.toml or pyproject.toml with pixi config
-    //  * pixi.lock
+    let mut index = repo.index().unwrap_or_else(|err| {
+        eprintln!("Couln't get the index for the araki repo: {err}");
+        exit(1);
+    });
+    for item in ["pixi.toml", "pixi.lock"] {
+        index.add_path(&path.join(item)).unwrap_or_else(|err| {
+            eprintln!("Couldn't add {item:?} to the git index: {err}");
+            exit(1);
+        });
+    }
+    index.write().unwrap_or_else(|err| {
+        eprintln!("Couldn't write to the git index: {err}");
+        exit(1);
+    });
 
-    // Install the pixi project
-    let _ = Command::new("pixi")
-        .arg("install")
-        .current_dir(project_env_dir)
-        .output()
-        .expect("Failed to execute command");
-}
+    let new_tree_oid = index.write_tree().unwrap_or_else(|err| {
+        eprintln!("Failed to write the git tree from the index: {err}");
+        exit(1);
+    });
+    let new_tree = repo.find_tree(new_tree_oid).unwrap_or_else(|err| {
+        eprintln!("Unable to find the git tree associated with the new commit: {err}");
+        exit(1);
+    });
+    let author = repo.signature().unwrap_or_else(|err| {
+        eprintln!("Unable to get the author to use for the commit: {err}");
+        exit(1);
+    });
 
-pub fn initialize_empty_project(project_env_dir: &Path) {
-    // Initialize the pixi project
-    let _ = Command::new("pixi")
-        .arg("init")
-        .current_dir(project_env_dir)
-        .status()
-        .expect("Failed to execute command");
+    let head = repo.head().unwrap_or_else(|err| {
+        eprintln!("Unable to get the head commit: {err}");
+        exit(1);
+    });
+    let parent = repo.find_commit(
+        head
+            .target()
+            .unwrap_or_else(|| {
+                eprintln!("Unable to get the OID of the HEAD commit.");
+                exit(1);
+            })
+    ).unwrap_or_else(|err| {
+        eprintln!("Unable to get the parent commit: {err}");
+        exit(1);
+    });
 
-    // TODO: change this to use git2
-    // Initialize the git repo
-    let _ = Command::new("git")
-        .arg("init")
-        .arg("-b")
-        .arg("main")
-        .current_dir(project_env_dir)
-        .status()
-        .expect("Failed to execute command");
+    repo
+        .commit(
+            Some("HEAD"),
+            &author,
+            &author,
+            &args.message,
+            &new_tree,
+            &[&parent],
+        )
+        .unwrap_or_else(|err| {
+            eprintln!("Error committing changes: {err}");
+            exit(1);
+        });
 
-    // Install the pixi project
-    let _ = Command::new("pixi")
-        .arg("install")
-        .current_dir(project_env_dir)
-        .status()
-        .expect("Failed to execute command");
-
-    // Add initial git commit
-    let _ = Command::new("git")
-        .arg("add")
-        .arg(".")
-        .current_dir(project_env_dir)
-        .status()
-        .expect("Failed to execute command");
-    let _ = Command::new("git")
-        .arg("commit")
-        .args(["-m", "\"Initial commit\""])
-        .current_dir(project_env_dir)
-        .status()
-        .expect("Failed to execute command");
+    // Push to remote
+    let mut origin = repo.remote("origin", &remote_url).unwrap_or_else(|err| {
+        eprintln!("Unable to push lockspec changes to remote: {err}");
+        exit(1);
+    });
+    origin
+        .push(&["main"], None)
+        .unwrap_or_else(|err| {
+            eprintln!("Failed to push changes to remote: {err}");
+            exit(1);
+        });
+    println!("Lockspec changes pushed to remote.")
 }
