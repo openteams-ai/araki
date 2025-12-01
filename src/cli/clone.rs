@@ -31,8 +31,21 @@ pub struct RemoteRepo {
 }
 
 impl RemoteRepo {
+    pub fn new(
+        org: Option<String>,
+        repo: String,
+        domain: Option<String>,
+        protocol: Option<String>,
+    ) -> RemoteRepo {
+        RemoteRepo {
+            org,
+            repo,
+            domain,
+            protocol,
+        }
+    }
     /// Render the repository as a git url
-    fn as_url(&self) -> String {
+    pub fn as_url(&self) -> String {
         format!(
             "{}{}/{}/{}",
             self.get_protocol(),
@@ -43,7 +56,7 @@ impl RemoteRepo {
     }
 
     /// Render the repository as an ssh URL
-    fn as_ssh_url(&self) -> String {
+    pub fn as_ssh_url(&self) -> String {
         format!(
             "git@{}:{}/{}.git",
             self.get_domain(),
@@ -84,22 +97,22 @@ fn parse_repo_arg(env: &str) -> Result<RemoteRepo, String> {
 
     let captures = re
         .captures(env)
-        .ok_or("Unrecognized format for repo name or URL: {env}.")?;
+        .ok_or(format!("Unrecognized format for repo name or URL: {env}."))?;
 
-    Ok(RemoteRepo {
-        protocol: captures
-            .name("protocol")
-            .map(|name| name.as_str().to_string()),
-        domain: captures
-            .name("domain")
-            .map(|name| name.as_str().to_string()),
-        org: captures.name("org").map(|name| name.as_str().to_string()),
-        repo: captures
+    Ok(RemoteRepo::new(
+        captures.name("org").map(|name| name.as_str().to_string()),
+        captures
             .name("repo")
-            .ok_or("No repo name found in {env}")?
+            .ok_or(format!("No repo name found in {env}"))?
             .as_str()
             .to_string(),
-    })
+        captures
+            .name("protocol")
+            .map(|name| name.as_str().to_string()),
+        captures
+            .name("domain")
+            .map(|name| name.as_str().to_string()),
+    ))
 }
 
 pub fn execute(args: Args) {

@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 
 use crate::cli::checkout;
 use crate::cli::clone;
+use crate::cli::init;
 use crate::cli::list;
 use crate::cli::pull;
 use crate::cli::push;
@@ -9,6 +10,7 @@ use crate::cli::shell;
 use crate::cli::shim;
 use crate::cli::tag;
 
+pub mod backends;
 pub mod cli;
 
 /// Manage and share environments
@@ -28,6 +30,9 @@ pub enum Command {
 
     /// Clone a lockspec from a remote repository and install it in the current directory
     Clone(clone::Args),
+
+    /// Create a new araki-managed lockspec from an existing lockspec
+    Init(init::Args),
 
     /// List available tags
     List(list::Args),
@@ -50,13 +55,15 @@ pub enum Command {
     Tag(tag::Args),
 }
 
-pub fn main() {
+#[tokio::main]
+pub async fn main() {
     let cli = Cli::parse();
 
     if let Some(cmd) = cli.command {
         match cmd {
             Command::Checkout(cmd) => checkout::execute(cmd),
             Command::Clone(cmd) => clone::execute(cmd),
+            Command::Init(cmd) => init::execute(cmd).await,
             Command::List(cmd) => list::execute(cmd),
             Command::Pull(cmd) => pull::execute(cmd),
             Command::Push(cmd) => push::execute(cmd),

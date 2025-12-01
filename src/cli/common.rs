@@ -1,7 +1,7 @@
 use directories::UserDirs;
 use fs::OpenOptions;
 use git2::build::RepoBuilder;
-use git2::{Cred, FetchOptions, RemoteCallbacks, Repository};
+use git2::{Cred, FetchOptions, PushOptions, RemoteCallbacks, Repository};
 use std::env::{current_dir, temp_dir};
 use std::fmt::Display;
 use std::fs;
@@ -46,7 +46,7 @@ pub fn get_default_araki_bin_dir() -> Result<PathBuf, String> {
 /// environment variables.
 ///
 /// Additionally modify `.gitignore` to ignore `.araki-git/` so that it doesn't get treated as
-/// a regular file.
+/// a regular file, as well as `pixi.lock` and `pixi.toml`
 ///
 /// * `repo`: URL of a git repo to clone
 /// * `path`: Path where the repo should be cloned
@@ -56,35 +56,7 @@ pub fn git_clone(repo: String, path: &Path) -> Result<(), String> {
         format!("Unable to clone {repo} to a temporary directory at {temp_dir:?}: {err}")
     })?;
 
-    let mut callbacks = RemoteCallbacks::new();
-
-    // Keep track of whether we've tried to get credentials from ssh-agent.
-    // See https://github.com/nodegit/nodegit/issues/1133 for an example of this, but it affects
-    // git2-rs as well; see https://github.com/rust-lang/git2-rs/issues/1140 and
-    // https://github.com/rust-lang/git2-rs/issues/347 for more context.
-    let mut tried_agent = false;
-
-    callbacks.credentials(|_url, username_from_url, allowed_types| {
-        let username = username_from_url.ok_or(git2::Error::from_str(
-            "Unable to get the ssh username from the URL.",
-        ))?;
-        if tried_agent {
-            return Err(git2::Error::from_str(
-                "Unable to authenticate via ssh. Is ssh-agent running, and have you \
-                    added the ssh key you use for git?",
-            ));
-        }
-
-        if allowed_types.is_ssh_key() {
-            tried_agent = true;
-            return Cred::ssh_key_from_agent(username);
-        }
-
-        Err(git2::Error::from_str(
-            "araki only supports ssh for git interactions. Please configure ssh-agent.",
-        ))
-    });
-
+    let callbacks = generate_remote_callbacks();
     let mut fetch_opts = FetchOptions::new();
     fetch_opts.remote_callbacks(callbacks);
 
@@ -114,10 +86,57 @@ pub fn git_clone(repo: String, path: &Path) -> Result<(), String> {
             .open(&gitignore)
             .map_err(|err| format!("Unable to open to {gitignore:?}: {err}"))?;
 
-        writeln!(file, ".araki-git/")
-            .map_err(|err| format!("Unable to write to {gitignore:?}: {err}"))?;
+        for item in [".araki-git/", "pixi.lock", "pixi.toml"] {
+            writeln!(file, "{}", item)
+                .map_err(|err| format!("Unable to write to {gitignore:?}: {err}"))?;
+        }
     }
 
+    Ok(())
+}
+
+fn generate_remote_callbacks() -> RemoteCallbacks<'static> {
+    let mut callbacks = RemoteCallbacks::new();
+
+    // Keep track of whether we've tried to get credentials from ssh-agent.
+    // See https://github.com/nodegit/nodegit/issues/1133 for an example of this, but it affects
+    // git2-rs as well; see https://github.com/rust-lang/git2-rs/issues/1140 and
+    // https://github.com/rust-lang/git2-rs/issues/347 for more context.
+    let mut tried_agent = false;
+
+    callbacks.credentials(move |_url, username_from_url, allowed_types| {
+        let username = username_from_url.ok_or(git2::Error::from_str(
+            "Unable to get the ssh username from the URL.",
+        ))?;
+        if tried_agent {
+            return Err(git2::Error::from_str(
+                "Unable to authenticate via ssh. Is ssh-agent running, and have you \
+                    added the ssh key you use for git?",
+            ));
+        }
+
+        if allowed_types.is_ssh_key() {
+            tried_agent = true;
+            return Cred::ssh_key_from_agent(username);
+        }
+
+        Err(git2::Error::from_str(
+            "araki only supports ssh for git interactions. Please configure ssh-agent.",
+        ))
+    });
+
+    callbacks
+}
+
+pub fn git_push(remote: &str, branch: &str) -> Result<(), git2::Error> {
+    let callbacks = generate_remote_callbacks();
+
+    let mut push_options = PushOptions::new();
+    push_options.remote_callbacks(callbacks);
+    let repo =
+        get_araki_git_repo().map_err(|err| git2::Error::from_str(format!("{err}").as_str()))?;
+    let mut origin = repo.find_remote(remote)?;
+    origin.push(&[format!("refs/heads/{branch}")], Some(&mut push_options))?;
     Ok(())
 }
 
