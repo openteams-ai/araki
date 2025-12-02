@@ -1,7 +1,7 @@
 use clap::Parser;
 use std::{env, process::Command};
 
-use crate::cli::common::get_default_araki_bin_dir;
+use crate::common::get_araki_bin_dir;
 
 #[derive(Parser, Debug)]
 #[command(arg_required_else_help = true)]
@@ -17,7 +17,7 @@ pub struct Args {
 ///
 /// * `path`: Colon-separated PATH environment variable to be stripped
 fn strip_araki_shim_path(path: &str) -> Result<String, String> {
-    let araki_bin_dir = get_default_araki_bin_dir()?;
+    let araki_bin_dir = get_araki_bin_dir()?;
     Ok(path
         .split(":")
         .skip_while(|item| **item == araki_bin_dir.to_string_lossy())

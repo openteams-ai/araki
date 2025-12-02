@@ -11,7 +11,7 @@ use std::{
     str::FromStr,
 };
 
-use crate::cli::common::get_default_araki_bin_dir;
+use crate::common::get_araki_bin_dir;
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -91,7 +91,7 @@ impl Shell {
                 .map_err(|_| "Unable to write araki shell config to {path}")?;
         }
 
-        let dir = get_default_araki_bin_dir()?;
+        let dir = get_araki_bin_dir()?;
         for tool in ["pip", "uv", "pixi", "conda"] {
             let shim_path = dir.join(tool);
             if exists(&shim_path).is_ok_and(|val| val) {
@@ -122,10 +122,7 @@ impl Shell {
     fn print_env(&self) -> Result<(), String> {
         match self {
             Shell::Bash | Shell::Zsh => {
-                print!(
-                    "PATH={}:$PATH",
-                    get_default_araki_bin_dir()?.to_string_lossy()
-                );
+                print!("PATH={}:$PATH", get_araki_bin_dir()?.to_string_lossy());
                 Ok(())
             }
             Shell::Unknown(shell) => {

@@ -3,7 +3,7 @@ use git2::Signature;
 use std::path::Path;
 use std::process::exit;
 
-use crate::cli::common;
+use crate::common;
 
 #[derive(Parser, Debug, Default)]
 pub struct Args {

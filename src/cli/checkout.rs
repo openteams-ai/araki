@@ -1,7 +1,7 @@
 use clap::Parser;
 use std::process::{Command, exit};
 
-use crate::cli::common;
+use crate::common;
 
 #[derive(Parser, Debug, Default)]
 pub struct Args {

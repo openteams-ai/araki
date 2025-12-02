@@ -8,7 +8,7 @@ use std::str::FromStr;
 use std::time::Instant;
 
 use crate::backends::{self, Backend};
-use crate::cli::common;
+use crate::common;
 
 const ORG: &str = "openteams-ai";
 

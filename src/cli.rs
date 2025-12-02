@@ -1,6 +1,6 @@
+pub mod auth;
 pub mod checkout;
 pub mod clone;
-pub mod common;
 pub mod init;
 pub mod list;
 pub mod pull;

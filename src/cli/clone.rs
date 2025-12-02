@@ -6,7 +6,7 @@ use std::{
     str::FromStr,
 };
 
-use crate::cli::common::{self, LockSpec};
+use crate::common::{self, LockSpec};
 use clap::Parser;
 use regex::Regex;
 
