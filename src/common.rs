@@ -10,9 +10,10 @@ use std::path::{Path, PathBuf};
 use toml::Table;
 use uuid::Uuid;
 
-pub const ARAKI_BIN_DIR: &str = ".araki/bin";
+pub const ARAKI_DIR: &str = ".araki";
 pub const ARAKI_GIT_DIR_NAME: &str = ".araki-git";
 
+/// Get the git directory used by git for lockspec version control
 pub fn get_araki_git_repo() -> Result<Repository, Error> {
     let cwd = current_dir()?;
     let araki_git_dir = cwd.join(ARAKI_GIT_DIR_NAME);
@@ -24,11 +25,23 @@ pub fn get_araki_git_repo() -> Result<Repository, Error> {
     Repository::open(araki_git_dir).map_err(Error::other)
 }
 
-pub fn get_default_araki_bin_dir() -> Result<PathBuf, String> {
+/// Get the path to the araki directory
+pub fn get_araki_dir() -> Result<PathBuf, String> {
     let dir = UserDirs::new()
-        .map(|path| path.home_dir().to_path_buf().join(ARAKI_BIN_DIR))
-        .ok_or("Could not determine the user home directory.")?;
+        .map(|path| path.home_dir().to_path_buf().join(ARAKI_DIR))
+        .ok_or("Could not determine the user home directory.".to_string())?;
 
+    if !dir.exists() {
+        fs::create_dir_all(&dir).map_err(|err| {
+            format!("Could not create araki directory at {dir:?}: {err}").to_string()
+        })?;
+    }
+    Ok(dir)
+}
+
+/// Get the path to the araki bin directory
+pub fn get_araki_bin_dir() -> Result<PathBuf, String> {
+    let dir = get_araki_dir()?.join("bin");
     if !dir.exists() {
         println!("araki bin dir does not exist. Creating it at {dir:?}");
         fs::create_dir_all(&dir).map_err(|err| {

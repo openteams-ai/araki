@@ -2,7 +2,7 @@ use clap::Parser;
 use git2::{Cred, PushOptions, RemoteCallbacks};
 use std::process::exit;
 
-use crate::cli::common;
+use crate::common;
 
 #[derive(Parser, Debug, Default)]
 pub struct Args {

@@ -8,9 +8,9 @@ use std::str::FromStr;
 use std::time::Instant;
 
 use crate::backends::{self, Backend};
-use crate::cli::common;
+use crate::common;
 
-const ORG: &str = "openteams-ai";
+const ORG: &str = "nos-environments";
 
 #[derive(Parser, Debug)]
 #[command(arg_required_else_help = true)]

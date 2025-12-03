@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 
+use crate::cli::auth;
 use crate::cli::checkout;
 use crate::cli::clone;
 use crate::cli::init;
@@ -12,6 +13,7 @@ use crate::cli::tag;
 
 pub mod backends;
 pub mod cli;
+pub mod common;
 
 /// Manage and share environments
 #[derive(Parser, Debug)]
@@ -25,6 +27,9 @@ pub struct Cli {
 #[derive(Subcommand, Debug)]
 #[command(arg_required_else_help = true)]
 pub enum Command {
+    /// Authenticate with the configured backend
+    Auth(auth::Args),
+
     /// Checkout a tag of an environment
     Checkout(checkout::Args),
 
@@ -61,6 +66,7 @@ pub async fn main() {
 
     if let Some(cmd) = cli.command {
         match cmd {
+            Command::Auth(cmd) => auth::execute(cmd).await,
             Command::Checkout(cmd) => checkout::execute(cmd),
             Command::Clone(cmd) => clone::execute(cmd),
             Command::Init(cmd) => init::execute(cmd).await,
