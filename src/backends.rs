@@ -1,12 +1,12 @@
 use async_trait::async_trait;
 use console::style;
-use reqwest::{RequestBuilder, Url};
+use reqwest::{ClientBuilder, RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
 use std::io::Write;
 use std::time::Duration;
-use std::{collections::HashMap, env};
 use tokio::time;
 
 use reqwest::{Client, header};
@@ -32,7 +32,7 @@ pub trait Backend {
 
 pub struct GitHubBackend {
     api_url: Url,
-    client: Client,
+    client: Option<Client>,
 }
 
 // An error type which is safe to send and share with other threads. Needed for async/await traits.
@@ -41,10 +41,18 @@ pub type BackendError = Box<dyn Error + Send + Sync>;
 #[async_trait]
 impl Backend for GitHubBackend {
     fn get(&self, path: &str) -> Result<RequestBuilder, BackendError> {
-        Ok(self.client.get(self.api_url.join(path)?))
+        Ok(self
+            .client
+            .as_ref()
+            .ok_or("Please authenticate with `araki auth login` before continuing.")?
+            .get(self.api_url.join(path)?))
     }
     fn post(&self, path: &str) -> Result<RequestBuilder, BackendError> {
-        Ok(self.client.post(self.api_url.join(path)?))
+        Ok(self
+            .client
+            .as_ref()
+            .ok_or("Please authenticate with `araki auth login` before continuing.")?
+            .post(self.api_url.join(path)?))
     }
     async fn is_existing_lockspec(&self, org: &str, name: &str) -> Result<bool, BackendError> {
         let resp = self
@@ -91,7 +99,11 @@ impl Backend for GitHubBackend {
             style("Please visit: ").bold().yellow(),
             resp.verification_uri
         );
-        println!("{}{}", style("and enter code: "), resp.user_code);
+        println!(
+            "{}{}",
+            style("and enter code: ").bold().yellow(),
+            resp.user_code
+        );
 
         Self::poll_for_token(&resp.device_code, Duration::from_secs(resp.interval)).await
     }
@@ -106,32 +118,45 @@ struct GitHubDeviceCodeResponse {
 }
 
 impl GitHubBackend {
-    const CLIENT_ID: &str = "Iv23lizucrPkJu2bxmR9";
+    const CLIENT_ID: &str = "Ov23linBvMCnaKWY4CBz";
 
-    pub fn new() -> Result<Self, BackendError> {
-        let token = env::var_os("GITHUB_TOKEN")
-            .ok_or("No GITHUB_TOKEN found in the environment. Aborting.")?
-            .into_string()
-            .map_err(|err| format!("Couldn't convert GITHUB_TOKEN to a string: {err:?}"))?;
+    fn make_authenticated_request_headers(token: &str) -> Result<header::HeaderMap, BackendError> {
         let mut headers = header::HeaderMap::new();
         headers.insert(
             "Accept",
             header::HeaderValue::from_static("application/vnd.github+json"),
         );
         headers.insert(
-            "Authorization",
-            header::HeaderValue::from_str(format!("Bearer {}", token.trim()).as_str())?,
-        );
-        headers.insert(
             "X-GitHub-Api-Version",
             header::HeaderValue::from_static("2022-11-28"),
         );
+        headers.insert(
+            "Authorization",
+            header::HeaderValue::from_str(format!("Bearer {}", token.trim()).as_str())?,
+        );
         headers.insert("User-Agent", header::HeaderValue::from_static("araki"));
+        Ok(headers)
+    }
+
+    pub fn new() -> Result<Self, BackendError> {
+        let mut client = None;
+        if let Some(token) = Self::get_cached_token() {
+            let builder = ClientBuilder::new();
+            client = Some(
+                builder
+                    .default_headers(Self::make_authenticated_request_headers(&token)?)
+                    .build()?,
+            )
+        }
 
         Ok(Self {
             api_url: Url::parse("https://api.github.com/")?,
-            client: Client::builder().default_headers(headers).build()?,
+            client,
         })
+    }
+
+    fn get_cached_token() -> Option<String> {
+        fs::read_to_string(get_araki_dir().ok()?.join("araki-token")).ok()
     }
 
     async fn request_device_code() -> Result<GitHubDeviceCodeResponse, BackendError> {
@@ -144,7 +169,7 @@ impl GitHubBackend {
 
         let url = Url::parse_with_params(
             "https://github.com/login/device/code",
-            &[("client_id", Self::CLIENT_ID)],
+            &[("client_id", Self::CLIENT_ID), ("scope", "repo admin:org")],
         )?;
 
         let response = client
@@ -157,7 +182,7 @@ impl GitHubBackend {
         Ok(response)
     }
 
-    async fn request_token(device_code: &str) -> Result<HashMap<String, String>, BackendError> {
+    async fn request_token(device_code: &str) -> Result<serde_json::Value, BackendError> {
         let mut headers = header::HeaderMap::new();
         headers.insert(
             "Accept",
@@ -174,18 +199,23 @@ impl GitHubBackend {
             ],
         )?;
 
-        let response = client
+        Ok(client
             .post(url)
             .send()
             .await?
-            .json::<HashMap<String, String>>()
-            .await?;
-        Ok(response)
+            .json::<serde_json::Value>()
+            .await?)
     }
 
     async fn poll_for_token(device_code: &str, interval: Duration) -> Result<(), BackendError> {
         loop {
-            let response = Self::request_token(device_code).await?;
+            let response = match Self::request_token(device_code).await {
+                Ok(resp) => resp,
+                Err(err) => {
+                    eprintln!("ERROR: {err}");
+                    std::process::exit(1);
+                }
+            };
             let error = response.get("error");
 
             match error {
@@ -207,16 +237,19 @@ impl GitHubBackend {
                     return Err(format!("Error getting araki github app token: {err}").into());
                 }
                 None => {
-                    // Write file and chmod it
-                    let token = response
-                        .get("access_token")
-                        .ok_or("Unexpected response whil getting a GitHub user access token")?;
+                    // Write the new token to the araki-token file
+                    let token = serde_json::from_value::<String>(
+                        response
+                            .get("access_token")
+                            .ok_or("Unexpected response whil getting a GitHub user access token")?
+                            .clone(),
+                    )?;
                     let mut file = fs::OpenOptions::new()
                         .write(true)
                         .create(true)
                         .truncate(true)
                         .open(get_araki_dir()?.join("araki-token"))?;
-                    writeln!(file, "{token}")?;
+                    writeln!(file, "{}", token)?;
                     return Ok(());
                 }
             }
