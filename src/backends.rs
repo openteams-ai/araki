@@ -22,11 +22,35 @@ struct GitHubCreateRepositoryRequestBody {
 
 #[async_trait]
 pub trait Backend {
+    /// Check if a lockspec exists under an org.
+    ///
+    /// * `org`: Organization containing lockspec repositories
+    /// * `name`: Name of the lockspec to search for
     async fn is_existing_lockspec(&self, org: &str, name: &str) -> Result<bool, BackendError>;
+
+    /// Create a repository under an org.
+    ///
+    /// * `org`: Organization where the repository should be created
+    /// * `name`: Name of the repository (i.e. the name of the lockspec)
     async fn create_repository(&self, org: &str, name: &str) -> Result<(), BackendError>;
+
+    /// Log in to the backend.
     async fn login(&self) -> Result<(), BackendError>;
+
+    /// Build a RemoteRepo containing repository information.
+    ///
+    /// * `org`: Organization
+    /// * `repo`: Repository name
     fn get_repo_info(&self, org: &str, repo: &str) -> RemoteRepo;
+
+    /// Create an authenticated GET request builder.
+    ///
+    /// * `path`: Suffix to join with the API url to send the request to
     fn get(&self, path: &str) -> Result<RequestBuilder, BackendError>;
+
+    /// Create an authenticated GET request builder.
+    ///
+    /// * `path`: Suffix to join with the API url to send the request to
     fn post(&self, path: &str) -> Result<RequestBuilder, BackendError>;
 }
 
@@ -90,7 +114,9 @@ impl Backend for GitHubBackend {
         )
     }
 
-    /// Prompt the user to log in.
+    /// Log the user in.
+    /// See https://docs.github.com/en/enterprise-cloud@latest/apps/creating-github-apps/writing-code-for-a-github-app/building-a-cli-with-a-github-app
+    /// for the reference followed here.
     async fn login(&self) -> Result<(), BackendError> {
         let resp = Self::request_device_code().await?;
 
@@ -118,8 +144,11 @@ struct GitHubDeviceCodeResponse {
 }
 
 impl GitHubBackend {
-    const CLIENT_ID: &str = "Ov23linBvMCnaKWY4CBz";
+    const CLIENT_ID: &str = "Ov23linBvMCnaKWY4CBz"; // araki-cli-app
 
+    /// Create a new set of authenticated headers.
+    ///
+    /// * `token`: Token to use for authentication with the API
     fn make_authenticated_request_headers(token: &str) -> Result<header::HeaderMap, BackendError> {
         let mut headers = header::HeaderMap::new();
         headers.insert(
@@ -138,6 +167,7 @@ impl GitHubBackend {
         Ok(headers)
     }
 
+    /// Create a new GitHubBackend.
     pub fn new() -> Result<Self, BackendError> {
         let mut client = None;
         if let Some(token) = Self::get_cached_token() {
@@ -155,10 +185,13 @@ impl GitHubBackend {
         })
     }
 
+    /// Return the cached token, if possible.
+    /// The token is stored at ~/.araki/araki-token
     fn get_cached_token() -> Option<String> {
         fs::read_to_string(get_araki_dir().ok()?.join("araki-token")).ok()
     }
 
+    /// Request a device code to use to initiate authentication with the GH API.
     async fn request_device_code() -> Result<GitHubDeviceCodeResponse, BackendError> {
         let mut headers = header::HeaderMap::new();
         headers.insert(
@@ -182,6 +215,9 @@ impl GitHubBackend {
         Ok(response)
     }
 
+    /// Request a token for the given device code.
+    ///
+    /// * `device_code`: Device code to use to authenticate
     async fn request_token(device_code: &str) -> Result<serde_json::Value, BackendError> {
         let mut headers = header::HeaderMap::new();
         headers.insert(
@@ -207,6 +243,11 @@ impl GitHubBackend {
             .await?)
     }
 
+    /// Poll the GH API while waiting for the user to allow araki to grab a user token.
+    ///
+    /// * `device_code`: Device code to use to authenticate
+    /// * `interval`: Interval to poll the API at. If the API says to slow down, we automatically
+    ///   add a 5s delay to this before the next poll
     async fn poll_for_token(device_code: &str, interval: Duration) -> Result<(), BackendError> {
         loop {
             let response = match Self::request_token(device_code).await {

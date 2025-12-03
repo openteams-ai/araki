@@ -13,7 +13,7 @@ pub struct Args {
 #[derive(Parser, Debug)]
 #[command(arg_required_else_help = true)]
 pub enum AuthSubcommand {
-    // Log in to the backend
+    // Log in to the configured backend
     Login,
 }
 
