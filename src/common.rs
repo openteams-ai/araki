@@ -141,7 +141,7 @@ fn generate_remote_callbacks() -> RemoteCallbacks<'static> {
     callbacks
 }
 
-pub fn git_push(remote: &str, branch: &str) -> Result<(), git2::Error> {
+pub fn git_push(remote: &str, refs: &[&str]) -> Result<(), git2::Error> {
     let callbacks = generate_remote_callbacks();
 
     let mut push_options = PushOptions::new();
@@ -149,7 +149,7 @@ pub fn git_push(remote: &str, branch: &str) -> Result<(), git2::Error> {
     let repo =
         get_araki_git_repo().map_err(|err| git2::Error::from_str(format!("{err}").as_str()))?;
     let mut origin = repo.find_remote(remote)?;
-    origin.push(&[format!("refs/heads/{branch}")], Some(&mut push_options))?;
+    origin.push(refs, Some(&mut push_options))?;
     Ok(())
 }
 
