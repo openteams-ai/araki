@@ -167,7 +167,7 @@ pub async fn execute(args: Args) {
         "{} Pushing changes to remote...",
         style("[4/4]").bold().dim(),
     );
-    common::git_push("origin", "main").unwrap_or_else(|err| {
+    common::git_push("origin", &["refs/heads/main"]).unwrap_or_else(|err| {
         eprintln!("Unable to push to remote: {err}");
         exit(1);
     });
