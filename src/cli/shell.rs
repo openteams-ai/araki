@@ -31,6 +31,7 @@ pub enum ShellSubcommand {
 
     /// Generate the environment changes to be evaluated by the shell so that the araki shims
     /// take precedence over other system binaries
+    #[command(hide = true)]
     Generate(ShellArg),
 }
 
@@ -70,7 +71,7 @@ impl fmt::Display for Shell {
 
 impl Shell {
     /// Update the bash/zsh config file to fiddle the PATH so that araki shims are executed instead
-    /// of `pip`, `uv`, `pixi`, `conda`, etc.
+    /// of `pip`, `uv`, `conda`, etc.
     ///
     /// * `path`: Path to the config file to edit
     fn update_posix_config(&self, path: &Path) -> Result<(), String> {
@@ -92,7 +93,7 @@ impl Shell {
         }
 
         let dir = get_araki_bin_dir()?;
-        for tool in ["pip", "uv", "pixi", "conda"] {
+        for tool in ["pip", "uv", "conda"] {
             let shim_path = dir.join(tool);
             if exists(&shim_path).is_ok_and(|val| val) {
                 remove_file(&shim_path)
