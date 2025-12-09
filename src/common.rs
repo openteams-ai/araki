@@ -39,6 +39,17 @@ pub fn get_araki_dir() -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+/// Get the path to the araki cache directory
+pub fn get_araki_cache() -> Result<PathBuf, Error> {
+    let dir = get_project_dir()?;
+    let cache = dir.cache_dir();
+    if !cache.exists() {
+        println!("araki cache does not exist. Creating it at {cache:?}");
+        fs::create_dir_all(cache)?;
+    }
+    Ok(cache.to_path_buf())
+}
+
 /// Get the path to the araki bin directory
 pub fn get_araki_bin_dir() -> Result<PathBuf, String> {
     let dir = get_araki_dir()?.join("bin");
