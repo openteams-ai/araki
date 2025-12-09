@@ -1,9 +1,9 @@
 use clap::Parser;
-use config::Config;
 use std::env;
 use std::process::{Command, exit};
 
 use crate::common::get_araki_bin_dir;
+use crate::settings::Settings;
 
 #[derive(Parser, Debug)]
 #[command(arg_required_else_help = true)]
@@ -26,7 +26,7 @@ fn strip_araki_shim_path(path: &str, shim_path: &str) -> Result<String, String> 
         .join(":"))
 }
 
-pub fn execute(args: Args, _settings: Config) {
+pub fn execute(args: Args, _settings: Settings) {
     let value = env::var("ARAKI_OVERRIDE_SHIM").unwrap_or("false".to_string());
     if value.trim() == "1" {
         // Run the requested command using the modified PATH

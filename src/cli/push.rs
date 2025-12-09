@@ -1,8 +1,7 @@
 use clap::Parser;
-use config::Config;
 use std::process::exit;
 
-use crate::common;
+use crate::{common, settings::Settings};
 
 #[derive(Parser, Debug, Default)]
 pub struct Args {
@@ -11,7 +10,7 @@ pub struct Args {
     tag: String,
 }
 
-pub fn execute(args: Args, _settings: Config) {
+pub fn execute(args: Args, _settings: Settings) {
     common::git_push(
         "origin",
         &[

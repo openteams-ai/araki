@@ -1,10 +1,10 @@
 use clap::Parser;
-use config::Config;
 use git2::Signature;
 use std::path::Path;
 use std::process::exit;
 
 use crate::common;
+use crate::settings::Settings;
 
 #[derive(Parser, Debug, Default)]
 pub struct Args {
@@ -20,7 +20,7 @@ pub struct Args {
     description: Option<String>,
 }
 
-pub fn execute(args: Args, _settings: Config) {
+pub fn execute(args: Args, _settings: Settings) {
     let repo = common::get_araki_git_repo().unwrap_or_else(|err| {
         eprintln!("Couldn't recognize the araki repo: {err}");
         exit(1);

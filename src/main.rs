@@ -1,7 +1,4 @@
 use clap::{Parser, Subcommand};
-use config::builder::DefaultState;
-use config::{Config, Environment};
-use config::{ConfigBuilder, ConfigError, FileFormat};
 use std::process::exit;
 
 use crate::cli::auth;
@@ -18,6 +15,7 @@ use crate::cli::tag;
 pub mod backends;
 pub mod cli;
 pub mod common;
+pub mod settings;
 
 /// Manage and share environments
 #[derive(Parser, Debug)]
@@ -64,43 +62,20 @@ pub enum Command {
     Tag(tag::Args),
 }
 
-/// Get the default araki settings
-fn default_settings() -> Result<ConfigBuilder<DefaultState>, ConfigError> {
-    Config::builder().set_default("backend", "github")
-}
-
-/// Get the araki configuration settings. In order, this merges
-///
-/// 1. Default settings
-/// 2. User-level araki.toml
-/// 3. Local araki.toml
-/// 4. Environment variables prefixed with 'ARAKI_'
-fn get_settings() -> Result<Config, ConfigError> {
-    let user_config = common::get_project_dir()
-        .map_err(|err| ConfigError::Message(format!("{err}")))?
-        .config_dir()
-        .join("araki")
-        .join("config");
-
-    default_settings()?
-        .add_source(
-            config::File::from_str(&user_config.to_string_lossy(), FileFormat::Toml)
-                .required(false),
-        )
-        .add_source(config::File::new("araki", FileFormat::Toml).required(false))
-        .add_source(Environment::with_prefix("ARAKI"))
-        .build()
-}
-
 #[tokio::main]
 pub async fn main() {
-    let settings = get_settings().unwrap_or_else(|err| {
+    let settings = settings::get_settings_from_config_dir(
+        common::get_project_dir()
+            .unwrap_or_else(|err| {
+                eprintln!("Couldn't get project directory: {err}");
+                exit(1);
+            })
+            .config_dir(),
+    )
+    .unwrap_or_else(|err| {
         eprintln!("Couldn't get the araki settings: {err}");
         exit(1);
     });
-
-    dbg!(&settings);
-
     let cli = Cli::parse();
 
     if let Some(cmd) = cli.command {

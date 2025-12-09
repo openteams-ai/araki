@@ -1,8 +1,7 @@
 use clap::Parser;
-use config::Config;
 use std::process::{Command, exit};
 
-use crate::common;
+use crate::{common, settings::Settings};
 
 #[derive(Parser, Debug, Default)]
 pub struct Args {
@@ -11,7 +10,7 @@ pub struct Args {
     tag: String,
 }
 
-pub fn execute(args: Args, _settings: Config) {
+pub fn execute(args: Args, _settings: Settings) {
     let repo = common::get_araki_git_repo().unwrap_or_else(|err| {
         eprintln!("Couldn't recognize the araki repo: {err}");
         exit(1);

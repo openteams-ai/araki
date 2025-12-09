@@ -1,9 +1,9 @@
 use crate::backends::Backend;
 use clap::Parser;
-use config::Config;
 use std::process::exit;
 
 use crate::backends;
+use crate::settings::Settings;
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -18,7 +18,7 @@ pub enum AuthSubcommand {
     Login,
 }
 
-pub async fn execute(args: Args, settings: Config) {
+pub async fn execute(args: Args, settings: Settings) {
     match args.subcommand {
         AuthSubcommand::Login => {
             let backend = backends::get_current_backend(settings).unwrap_or_else(|err| {

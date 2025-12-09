@@ -1,5 +1,4 @@
 use clap::Parser;
-use config::Config;
 use directories::UserDirs;
 use std::fs::{Permissions, exists, remove_file, set_permissions};
 use std::io::Write;
@@ -13,6 +12,7 @@ use std::{
 };
 
 use crate::common::get_araki_bin_dir;
+use crate::settings::Settings;
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -187,7 +187,7 @@ impl Shell {
     }
 }
 
-pub fn execute(args: Args, _settings: Config) {
+pub fn execute(args: Args, _settings: Settings) {
     match args.subcommand {
         ShellSubcommand::Init(shell_arg) => {
             let shell: Shell = shell_arg

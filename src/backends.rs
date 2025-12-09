@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use config::Config;
 use console::style;
 use reqwest::{ClientBuilder, RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
@@ -14,6 +13,7 @@ use reqwest::{Client, header};
 
 use crate::cli::clone::RemoteRepo;
 use crate::common::get_araki_dir;
+use crate::settings::Settings;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct GitHubCreateRepositoryRequestBody {
@@ -300,8 +300,8 @@ impl GitHubBackend {
 }
 
 /// Get the currently configured araki backend.
-pub fn get_current_backend(settings: Config) -> Result<impl Backend, BackendError> {
-    match settings.get_string("backend")?.to_lowercase().trim() {
+pub fn get_current_backend(settings: Settings) -> Result<impl Backend, BackendError> {
+    match settings.backend.to_lowercase().trim() {
         "github" => GitHubBackend::new(),
         other => {
             Err(format!("{other} is not a valid backend. Please choose one of: ['github']").into())

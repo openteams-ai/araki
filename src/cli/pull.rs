@@ -1,9 +1,8 @@
 use clap::Parser;
-use config::Config;
 use git2::{AutotagOption, Cred, FetchOptions, RemoteCallbacks, Repository};
 use std::process::exit;
 
-use crate::common;
+use crate::{common, settings::Settings};
 
 #[derive(Parser, Debug, Default)]
 pub struct Args {
@@ -72,7 +71,7 @@ fn normal_merge(
     Ok(())
 }
 
-pub fn execute(_args: Args, _settings: Config) {
+pub fn execute(_args: Args, _settings: Settings) {
     let repo = common::get_araki_git_repo().unwrap_or_else(|err| {
         eprintln!("Couldn't recognize the araki repo: {err}");
         exit(1);

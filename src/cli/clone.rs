@@ -6,9 +6,11 @@ use std::{
     str::FromStr,
 };
 
-use crate::common::{self, LockSpec};
+use crate::{
+    common::{self, LockSpec},
+    settings::Settings,
+};
 use clap::Parser;
-use config::Config;
 use regex::Regex;
 
 #[derive(Parser, Debug, Default)]
@@ -116,7 +118,7 @@ fn parse_repo_arg(env: &str) -> Result<RemoteRepo, String> {
     ))
 }
 
-pub fn execute(args: Args, _settings: Config) {
+pub fn execute(args: Args, _settings: Settings) {
     let cwd = current_dir().unwrap_or_else(|err| {
         eprintln!("Could not get the current directory: {err}");
         exit(1);
