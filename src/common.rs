@@ -1,4 +1,4 @@
-use directories::UserDirs;
+use directories::{ProjectDirs, UserDirs};
 use fs::OpenOptions;
 use git2::build::RepoBuilder;
 use git2::{Cred, FetchOptions, PushOptions, RemoteCallbacks, Repository};
@@ -39,9 +39,17 @@ pub fn get_araki_dir() -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+/// Get the project directories for araki
+///
+/// Used to get the cache directory, config, etc.
+pub fn get_project_dirs() -> Result<ProjectDirs, Error> {
+    ProjectDirs::from("", "", "araki")
+        .ok_or(Error::new(ErrorKind::NotFound, "No home directory found."))
+}
+
 /// Get the path to the araki cache directory
 pub fn get_araki_cache() -> Result<PathBuf, Error> {
-    let dir = get_project_dir()?;
+    let dir = get_project_dirs()?;
     let cache = dir.cache_dir();
     if !cache.exists() {
         println!("araki cache does not exist. Creating it at {cache:?}");
