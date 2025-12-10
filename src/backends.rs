@@ -6,13 +6,14 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
 use std::io::Write;
+use std::path::PathBuf;
 use std::time::Duration;
 use tokio::time;
 
 use reqwest::{Client, header};
 
 use crate::cli::clone::RemoteRepo;
-use crate::common::get_araki_dir;
+use crate::common::get_araki_cache;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct GitHubCreateRepositoryRequestBody {
@@ -169,15 +170,12 @@ impl GitHubBackend {
 
     /// Create a new GitHubBackend.
     pub fn new() -> Result<Self, BackendError> {
-        let mut client = None;
-        if let Some(token) = Self::get_cached_token() {
-            let builder = ClientBuilder::new();
-            client = Some(
-                builder
-                    .default_headers(Self::make_authenticated_request_headers(&token)?)
-                    .build()?,
-            )
-        }
+        let client = Self::get_cached_token().and_then(|token| {
+            ClientBuilder::new()
+                .default_headers(Self::make_authenticated_request_headers(&token).ok()?)
+                .build()
+                .ok()
+        });
 
         Ok(Self {
             api_url: Url::parse("https://api.github.com/")?,
@@ -186,9 +184,14 @@ impl GitHubBackend {
     }
 
     /// Return the cached token, if possible.
-    /// The token is stored at ~/.araki/araki-token
+    /// The token is stored at <araki-cache-dir>/github-araki-token
     fn get_cached_token() -> Option<String> {
-        fs::read_to_string(get_araki_dir().ok()?.join("araki-token")).ok()
+        fs::read_to_string(Self::get_cached_token_file().ok()?).ok()
+    }
+
+    /// Get the path to the file where araki caches its backend token
+    fn get_cached_token_file() -> Result<PathBuf, BackendError> {
+        Ok(get_araki_cache()?.join("github-araki-token"))
     }
 
     /// Request a device code to use to initiate authentication with the GH API.
@@ -289,7 +292,7 @@ impl GitHubBackend {
                         .write(true)
                         .create(true)
                         .truncate(true)
-                        .open(get_araki_dir()?.join("araki-token"))?;
+                        .open(Self::get_cached_token_file()?)?;
                     writeln!(file, "{}", token)?;
                     return Ok(());
                 }
