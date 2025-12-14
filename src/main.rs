@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 use crate::cli::auth;
 use crate::cli::checkout;
 use crate::cli::clone;
+use crate::cli::commit;
 use crate::cli::init;
 use crate::cli::list;
 use crate::cli::pull;
@@ -35,6 +36,9 @@ pub enum Command {
 
     /// Clone a lockspec from a remote repository and install it in the current directory
     Clone(clone::Args),
+
+    /// Commit a change to an environment
+    Commit(commit::Args),
 
     /// Create a new araki-managed lockspec from an existing lockspec
     Init(init::Args),
@@ -69,6 +73,7 @@ pub async fn main() {
             Command::Auth(cmd) => auth::execute(cmd).await,
             Command::Checkout(cmd) => checkout::execute(cmd),
             Command::Clone(cmd) => clone::execute(cmd),
+            Command::Commit(cmd) => commit::execute(cmd),
             Command::Init(cmd) => init::execute(cmd).await,
             Command::List(cmd) => list::execute(cmd),
             Command::Pull(cmd) => pull::execute(cmd),
