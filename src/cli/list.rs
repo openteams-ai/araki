@@ -20,6 +20,7 @@ pub fn execute(args: Args) {
         // TODO: use the repo object to get the tree
         let tree_output = Command::new("git")
             .arg("tree")
+            .env("GIT_DIR", ".araki-git")
             .output()
             .expect("Failed to execute command");
         let tree_stdout = String::from_utf8_lossy(&tree_output.stdout);
