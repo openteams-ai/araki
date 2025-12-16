@@ -1,5 +1,5 @@
 use clap::Parser;
-use git2::Tag;
+use git2::{Sort, Tag};
 use std::process::{Command, exit};
 
 use crate::common;
@@ -8,6 +8,9 @@ use crate::common;
 pub struct Args {
     #[arg(long, help = "Switch to print out the list of checkpoints as a tree")]
     tree: bool,
+
+    #[arg(long, help = "Switch to print out the list of tags")]
+    tags: bool,
 }
 
 pub fn execute(args: Args) {
@@ -24,7 +27,7 @@ pub fn execute(args: Args) {
             .expect("Failed to execute command");
         let tree_stdout = String::from_utf8_lossy(&tree_output.stdout);
         println!("{}", tree_stdout);
-    } else {
+    } else if args.tags {
         let tags = repo.tag_names(Some("*")).unwrap();
 
         for name_w in tags.iter() {
@@ -37,11 +40,46 @@ pub fn execute(args: Args) {
                 print_name(name);
             }
         }
+    } else {
+        // Create a revision walker
+        let mut revwalk = repo.revwalk().unwrap();
+
+        // Push the HEAD to the walker to start traversal from the current commit
+        let _ = revwalk.push_head();
+
+        // Optional: set the sorting order (default is reverse chronological by time)
+        // You can use Sort::TOPOLOGICAL or combine flags like Sort::TIME | Sort::REVERSE
+        revwalk
+            .set_sorting(Sort::TOPOLOGICAL | Sort::REVERSE)
+            .unwrap();
+
+        // Iterate over the commit OIDs (Object IDs) returned by the walker
+        for oid in revwalk {
+            let oid = oid.unwrap();
+
+            // Find the full commit object
+            let commit = repo.find_commit(oid).unwrap();
+
+            // Extract commit information
+            let author = commit.author();
+            let summary_bytes = commit
+                .summary_bytes()
+                .unwrap_or_else(|| commit.message_bytes());
+            let summary = str::from_utf8(summary_bytes).unwrap_or("Invalid UTF-8 message");
+
+            println!(
+                "Commit: {}\nAuthor: {} <{}>\nSummary: {}\n",
+                oid,
+                author.name().unwrap_or("Unknown"),
+                author.email().unwrap_or("Unknown"),
+                summary,
+            );
+        }
     }
 }
 
 fn print_tag(tag: &Tag) {
-    print!("{:<16}", tag.name().unwrap());
+    print!("* {:<16}", tag.name().unwrap());
     print_list_lines(tag.message());
 }
 
