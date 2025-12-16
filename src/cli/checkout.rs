@@ -1,4 +1,5 @@
 use clap::Parser;
+use git2::Oid;
 use std::process::{Command, exit};
 
 use crate::common;
@@ -6,8 +7,8 @@ use crate::common;
 #[derive(Parser, Debug, Default)]
 pub struct Args {
     // name of the tag
-    #[arg(help = "Name of the tag")]
-    tag: String,
+    #[arg(help = "Name of the tag or commit")]
+    tag_or_commit: String,
 }
 
 pub fn execute(args: Args) {
@@ -16,11 +17,11 @@ pub fn execute(args: Args) {
         exit(1);
     });
 
-    let tag = args.tag;
+    let tag = args.tag_or_commit;
 
-    let git_ref = if tag == "latest" {
+    let git_ref_object = if tag == "latest" {
         match repo.find_reference("refs/heads/main") {
-            Ok(res ) => res,
+            Ok(res ) => res.peel(git2::ObjectType::Commit).unwrap(),
             Err(_err) => {
                 eprintln!("Unable to find the latest commit at refs/heads/main");
                 exit(1);
@@ -28,15 +29,19 @@ pub fn execute(args: Args) {
         }
     } else {
         match repo.find_reference(&format!("refs/tags/{}", tag)) {
-            Ok(res ) => res,
+            Ok(res ) => res.peel(git2::ObjectType::Commit).unwrap(),
             Err(_err) => {
-                eprintln!("{}", format!("Could not find tag '{}'", tag));
-                exit(1);
+                match repo.find_object(Oid::from_str(&tag).unwrap(), Some(git2::ObjectType::Commit)) {
+                    Ok(r) => r,
+                    Err(_err) => {
+                        eprintln!("{}", format!("Could not find tag '{}'", tag));
+                        exit(1);
+                    }
+                }
             }
         }
     };
 
-    let git_ref_object = git_ref.peel(git2::ObjectType::Commit).unwrap();
     let commit = git_ref_object
         .as_commit()
         .ok_or_else(|| git2::Error::from_str("Tag did not peel to a commit"))
